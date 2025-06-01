@@ -16,6 +16,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 	"github.com/HazelnutParadise/insyra-insights/i18n"
+	"github.com/HazelnutParadise/insyra-insights/version"
 )
 
 func main() {
@@ -58,15 +59,17 @@ func run(window *app.Window) error {
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:
-			// This graphics context is used for managing the rendering state.
-			gtx := app.NewContext(&ops, e) // 使用垂直布局來顯示 logo、文字和載入動畫
+			gtx := app.NewContext(&ops, e)
+
+			// 主佈局
 			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{
 					Axis:      layout.Vertical,
 					Alignment: layout.Middle,
 					Spacing:   layout.SpaceAround,
-				}.Layout(gtx, // Logo - 確保完全置中
+				}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// Logo 部分
 						// 設置 logo 的大小
 						imgSize := logoOp.Size()
 
@@ -105,17 +108,17 @@ func run(window *app.Window) error {
 						// 設置文字對齊
 						title.Alignment = text.Middle
 
-						// 使用正常字型，去掉斜體
-						title.Font.Style = font.Regular
+						// 使用斜體
+						title.Font.Style = font.Italic
 
 						// 設定字體粗細為粗體
-						title.Font.Weight = font.Bold
+						title.Font.Weight = font.SemiBold
 
 						// 增加字體大小
 						title.TextSize = unit.Sp(52)
 
 						// 顯示標題並添加一些上下間距
-						return layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(20)}.Layout(gtx, title.Layout)
+						return layout.Inset{Bottom: unit.Dp(20)}.Layout(gtx, title.Layout)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						slogan := material.Body1(theme, i18n.T("starting.slogan"))
@@ -135,7 +138,6 @@ func run(window *app.Window) error {
 						loadingText.Font.Style = font.Italic
 						return layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(20)}.Layout(gtx, loadingText.Layout)
 					}),
-					// 載入動畫
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						// 設定載入動畫的大小
 						gtx.Constraints.Min.X = gtx.Dp(unit.Dp(50))
@@ -143,12 +145,34 @@ func run(window *app.Window) error {
 
 						// 建立載入動畫
 						loader := material.Loader(theme)
-						return loader.Layout(gtx)
+						return layout.Inset{Top: unit.Dp(0), Bottom: unit.Dp(20)}.Layout(gtx, loader.Layout)
+
 					}),
+					// 移除了版本號的 layout.Rigid
 				)
 			})
 
-			// Pass the drawing operations to the GPU.
+			// 在主佈局之後，單獨處理版本號 - 將其放在右下角
+			versionText := material.Caption(theme, i18n.T("starting.version")+": "+version.Version)
+			versionText.Color = color.NRGBA{R: 150, G: 150, B: 150, A: 200}
+			versionText.Alignment = text.End
+			versionText.TextSize = unit.Sp(14)
+
+			// 使用 Stack 和 SE (South East) 將版本號放在右下角
+			layout.Stack{Alignment: layout.SE}.Layout(gtx,
+				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+					// 透明背景，充滿整個視窗
+					return layout.Dimensions{Size: gtx.Constraints.Max}
+				}),
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					// 添加右下角邊距
+					return layout.Inset{
+						Right:  unit.Dp(10),
+						Bottom: unit.Dp(10),
+					}.Layout(gtx, versionText.Layout)
+				}),
+			)
+
 			e.Frame(gtx.Ops)
 		}
 	}

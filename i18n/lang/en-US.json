@@ -1,6 +1,7 @@
 {
   "starting": {
     "slogan": "Born for the Community",
-    "loading": "Software Starting Up"
+    "loading": "Software Starting Up",
+    "version": "Version"
   }
 }
