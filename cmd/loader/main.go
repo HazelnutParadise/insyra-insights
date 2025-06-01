@@ -20,6 +20,7 @@ import (
 )
 
 func main() {
+	// i18n.SetLanguage("en-US")
 	go func() {
 		// 建立固定大小的視窗，寬度800，高度600，可移動
 		window := new(app.Window)
@@ -118,7 +119,7 @@ func run(window *app.Window) error {
 						title.TextSize = unit.Sp(52)
 
 						// 顯示標題並添加一些上下間距
-						return layout.Inset{Bottom: unit.Dp(20)}.Layout(gtx, title.Layout)
+						return layout.Inset{Top: unit.Dp(-20), Bottom: unit.Dp(45), Left: unit.Dp(250)}.Layout(gtx, title.Layout)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						slogan := material.Body1(theme, i18n.T("starting.slogan"))
