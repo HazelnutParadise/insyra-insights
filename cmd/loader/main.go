@@ -15,12 +15,15 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
+	"github.com/HazelnutParadise/insyra-insights/config"
 	"github.com/HazelnutParadise/insyra-insights/i18n"
 	"github.com/HazelnutParadise/insyra-insights/version"
 )
 
 func main() {
-	// i18n.SetLanguage("en-US")
+	config.Load()
+
+	i18n.SetLanguage(config.Get(config.Language))
 	go func() {
 		// 建立固定大小的視窗，寬度800，高度600，可移動
 		window := new(app.Window)

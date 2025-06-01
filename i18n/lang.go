@@ -10,7 +10,6 @@ import (
 func init() {
 	LoadLanguage("en-US") // fallback 預設
 	LoadLanguage("zh-TW") // 預設語系
-	SetLanguage("zh-TW")
 }
 
 //go:embed lang/*.json
