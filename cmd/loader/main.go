@@ -143,4 +143,20 @@ func run(window *app.Window) error {
 
 						// 建立載入動畫
 						loader := material.Loader(theme)
-						return loader.Layou
+						return loader.Layout(gtx)
+					}),
+				)
+			})
+
+			// Pass the drawing operations to the GPU.
+			e.Frame(gtx.Ops)
+		}
+	}
+}
+
+func min(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
