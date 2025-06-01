@@ -160,7 +160,7 @@ func run(window *app.Window) error {
 			versionText.TextSize = unit.Sp(14)
 
 			// 使用 Stack 和 SE (South East) 將版本號放在右下角
-			layout.Stack{Alignment: layout.SE}.Layout(gtx,
+			layout.Stack{Alignment: layout.SW}.Layout(gtx,
 				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 					// 透明背景，充滿整個視窗
 					return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -168,6 +168,7 @@ func run(window *app.Window) error {
 				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 					// 添加右下角邊距
 					return layout.Inset{
+						Left:   unit.Dp(10),
 						Right:  unit.Dp(10),
 						Bottom: unit.Dp(10),
 					}.Layout(gtx, versionText.Layout)
