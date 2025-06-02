@@ -3,5 +3,24 @@
     "slogan": "卓越的洞察，為社群而生",
     "loading": "軟體啟動中...",
     "version": "版本"
+  },
+  "welcome": {
+    "title": "歡迎使用 Insyra Insights",
+    "subtitle": "統計與分析軟體",
+    "description": "請選擇要匯入的資料來源，或開始新的分析專案",
+    "import_csv": "匯入 CSV 檔案",
+    "import_excel": "匯入 Excel 檔案",
+    "import_json": "匯入 JSON 檔案",
+    "import_sqlite": "匯入 SQLite 資料庫",
+    "start_analysis": "開始新的分析專案",
+    "today_is": "今天是"
+  },
+  "messages": {
+    "select_file": "選擇檔案...",
+    "import_success": "已成功匯入資料：",
+    "import_fail": "匯入失敗：",
+    "creating_project": "創建新的分析專案...",
+    "project_ready": "分析專案已準備就緒！",
+    "dialog_error": "無法開啟檔案選擇對話框："
   }
 }
