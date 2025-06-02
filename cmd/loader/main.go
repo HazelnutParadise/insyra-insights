@@ -32,7 +32,9 @@ func main() {
 		window.Option(
 			app.Title("Insyra Insights"),
 			app.Size(unit.Dp(600), unit.Dp(400)),
-			app.Decorated(false), // 允許視窗被移動
+			app.Decorated(false),
+			app.MinSize(unit.Dp(600), unit.Dp(400)),
+			app.MaxSize(unit.Dp(600), unit.Dp(400)),
 		)
 
 		err := run(window)
@@ -124,7 +126,7 @@ func run(window *app.Window) error {
 						title.TextSize = unit.Sp(52)
 
 						// 顯示標題並添加一些上下間距
-						return layout.Inset{Top: unit.Dp(-20), Bottom: unit.Dp(45), Left: unit.Dp(250)}.Layout(gtx, title.Layout)
+						return layout.Inset{Top: unit.Dp(-20), Bottom: unit.Dp(30), Left: unit.Dp(250)}.Layout(gtx, title.Layout)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						slogan := material.Body1(theme, i18n.T("starting.slogan"))
