@@ -23,6 +23,8 @@ import (
 func main() {
 	config.Load()
 
+	// config.Set(config.Language, "en-US")
+
 	i18n.SetLanguage(config.Get(config.Language))
 	go func() {
 		// 建立固定大小的視窗，寬度800，高度600，可移動
@@ -56,7 +58,9 @@ func run(window *app.Window) error {
 	}
 	logoOp := paint.NewImageOp(logoImg)
 
+	// 創建主題，使用我們自定義的字體
 	theme := material.NewTheme()
+
 	var ops op.Ops
 	for {
 		switch e := window.Event().(type) {
@@ -107,9 +111,7 @@ func run(window *app.Window) error {
 
 						// 設置更現代化的漸層藍色
 						elegantBlue := color.NRGBA{R: 41, G: 98, B: 255, A: 255}
-						title.Color = elegantBlue
-
-						// 設置文字對齊
+						title.Color = elegantBlue // 設置文字對齊
 						title.Alignment = text.Middle
 
 						// 使用斜體
