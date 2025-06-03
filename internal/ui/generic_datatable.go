@@ -234,28 +234,28 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 
 	// 若不在編輯模式，呈現可點擊文字模式
 	if dt.editingCell != cellKey {
-		return layout.Stack{}.Layout(gtx,
-			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-				paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 255}, clip.Rect{
-					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-				}.Op())
-				paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
-					Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
-					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-				}.Op())
-				return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
-			}),
-			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-				return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return clicker.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return clicker.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Stack{}.Layout(gtx,
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 255}, clip.Rect{
+						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+					}.Op())
+					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+						Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
+						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+					}.Op())
+					return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
+				}),
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return material.Body2(th, text).Layout(gtx)
 					})
-				})
-			}),
-		)
+				}),
+			)
+		})
 	}
 
-	// 若在編輯模式，持續檢查是否按下 Enter（Text 結尾為 \n）
+	// 若在編輯模式，持續檢查是否按下 Enter（Text 包含 \n）
 	enteredText := editor.Text()
 	if len(enteredText) > 0 && strings.Contains(enteredText, "\n") {
 		trimmed := strings.ReplaceAll(enteredText, "\n", "")
@@ -263,29 +263,51 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 		dt.Table.Show()
 		editor.SetText(trimmed)
 		dt.editingCell = ""
+	} // 編輯模式介面
+	// 先保存原始約束條件
+	origConstraints := gtx.Constraints
+
+	// 設置固定的儲存格大小，防止編輯模式影響佈局
+	cellWidth := gtx.Dp(dt.CellWidth)
+	cellHeight := gtx.Dp(dt.CellHeight)
+	gtx.Constraints.Max = image.Point{X: cellWidth, Y: cellHeight}
+	gtx.Constraints.Min = image.Point{X: cellWidth, Y: cellHeight}
+
+	// 當使用者點擊儲存格時，讓編輯器保持焦點，實現直接輸入
+	if clicker.Clicked(gtx) {
+		// 我們確保編輯器已經在編輯模式，不需要做更多操作
+		// 因為已經是編輯模式，所以點擊後編輯器仍會保持焦點
 	}
 
-	// 編輯模式介面
+	// 使用 Stack 布局
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			// 繪製背景和邊框，但不包裹點擊器
 			paint.FillShape(gtx.Ops, color.NRGBA{240, 248, 255, 255}, clip.Rect{
-				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+				Max: image.Pt(cellWidth, cellHeight),
 			}.Op())
+
+			// 恢復原始約束條件以正確繪製內容
+			gtx.Constraints = origConstraints
+			gtx.Constraints.Max = image.Point{X: cellWidth, Y: cellHeight}
 
 			borderColor := color.NRGBA{0, 123, 255, 255}
 
 			// 畫四邊藍色邊框
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(gtx.Dp(dt.CellWidth), 3)}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, gtx.Dp(dt.CellHeight)-3), Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(3, gtx.Dp(dt.CellHeight))}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(gtx.Dp(dt.CellWidth)-3, 0), Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(cellWidth, 3)}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, cellHeight-3), Max: image.Pt(cellWidth, cellHeight)}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(3, cellHeight)}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(cellWidth-3, 0), Max: image.Pt(cellWidth, cellHeight)}.Op())
 
-			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
+			return layout.Dimensions{Size: image.Point{X: cellWidth, Y: cellHeight}}
 		}),
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			// 使用 Expanded 讓編輯器能夠占滿整個儲存格，並能接收點擊
+			// 使用最小的內邊距，讓輸入框盡可能佔滿整個儲存格
+			return layout.UniformInset(unit.Dp(2)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				editorWidget := material.Editor(th, editor, "")
 				editorWidget.Color = color.NRGBA{0, 0, 0, 255}
+				// 設置較大的尺寸，確保點擊區域足夠大
 				return editorWidget.Layout(gtx)
 			})
 		}),
