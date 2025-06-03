@@ -50,7 +50,6 @@ func run(window *app.Window) error {
 	viewController.SwitchView("welcome")
 	// 創建切換按鈕
 	var welcomeButton widget.Clickable
-	var homeButton widget.Clickable
 	var aboutButton widget.Clickable
 	var settingsButton widget.Clickable
 	var dataButton widget.Clickable
@@ -65,9 +64,6 @@ func run(window *app.Window) error {
 			// 處理按鈕點擊
 			if welcomeButton.Clicked(gtx) {
 				viewController.SwitchView("welcome")
-			}
-			if homeButton.Clicked(gtx) {
-				viewController.SwitchView("home")
 			}
 			if aboutButton.Clicked(gtx) {
 				viewController.SwitchView("about")
@@ -94,9 +90,6 @@ func run(window *app.Window) error {
 					}.Layout(gtx,
 						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &welcomeButton, "歡迎").Layout(gtx)
-						}),
-						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
-							return material.Button(theme, &homeButton, "首頁").Layout(gtx)
 						}),
 						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &aboutButton, "關於").Layout(gtx)
