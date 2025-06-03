@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"strconv"
+	"strings"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -82,7 +83,7 @@ func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return dt.cell(gtx, th, "")
 	}))
-	for i := 0; i < cols; i++ {
+	for i := range cols {
 		label := indexToLetters(i)
 		currentLabel := label // 捕獲迴圈變數
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -118,13 +119,18 @@ func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, 
 	// 使用 Data() 方法獲取所有資料
 	data := dt.Table.Data()
 
-	for i := 0; i < cols; i++ {
+	for i := range cols {
 		var text string
 
 		// 使用列名作為鍵來獲取資料
 		colName := dt.Table.GetColByNumber(i).GetName()
 		if colData, exists := data[colName]; exists && row < len(colData) {
-			text = fmt.Sprint(colData[row])
+			el := colData[row]
+			if el != nil {
+				text = fmt.Sprint(colData[row])
+			} else {
+				text = "."
+			}
 		} else {
 			text = "N/A"
 		}
@@ -205,17 +211,14 @@ func indexToLetters(index int) string {
 
 // editableCell 創建可編輯的儲存格
 func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme, text, cellKey string, row, col int) layout.Dimensions {
-	// 檢查是否有編輯器，如果沒有則創建
+	// 建立 editor（如尚未存在）
 	if _, exists := dt.cellEditors[cellKey]; !exists {
-		editor := &widget.Editor{
-			SingleLine: true,
-			Submit:     true,
-		}
+		editor := &widget.Editor{}
 		editor.SetText(text)
 		dt.cellEditors[cellKey] = editor
 	}
 
-	// 檢查是否有點擊器，如果沒有則創建
+	// 建立 clickable（如尚未存在）
 	if _, exists := dt.cellClickers[cellKey]; !exists {
 		dt.cellClickers[cellKey] = &widget.Clickable{}
 	}
@@ -223,92 +226,70 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 	editor := dt.cellEditors[cellKey]
 	clicker := dt.cellClickers[cellKey]
 
-	// 檢查是否有提交事件
-	if editor.Submit {
-		newValue := editor.Text()
-		dt.updateCellValue(row, col, newValue)
-		dt.editingCell = ""
-		editor.Submit = false
-	}
-	// 檢查點擊事件來進入編輯模式
+	// 若使用者點擊儲存格，進入編輯模式
 	if clicker.Clicked(gtx) {
 		dt.editingCell = cellKey
 		editor.SetText(text)
 	}
-	// 檢查點擊事件來進入編輯模式
+
+	// 若不在編輯模式，呈現可點擊文字模式
 	if dt.editingCell != cellKey {
 		return layout.Stack{}.Layout(gtx,
 			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-				// 繪製儲存格背景
-				paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, clip.Rect{
+				paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 255}, clip.Rect{
 					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 				}.Op())
-
-				// 繪製邊框
 				paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 					Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
 					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 				}.Op())
-
 				return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
 			}),
 			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 				return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					// 普通模式：顯示文字，可點擊進入編輯
 					return clicker.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return material.Body2(th, text).Layout(gtx)
 					})
 				})
 			}),
 		)
-	} else {
-		// 編輯模式
-		return layout.Stack{}.Layout(gtx,
-			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-				// 繪製編輯模式的背景（淺藍色）
-				paint.FillShape(gtx.Ops, color.NRGBA{R: 240, G: 248, B: 255, A: 255}, clip.Rect{
-					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-				}.Op())
-
-				// 繪製加粗的編輯模式邊框（藍色，3像素）
-				borderColor := color.NRGBA{R: 0, G: 123, B: 255, A: 255} // 藍色邊框
-
-				// 上邊框
-				paint.FillShape(gtx.Ops, borderColor, clip.Rect{
-					Min: image.Pt(0, 0),
-					Max: image.Pt(gtx.Dp(dt.CellWidth), 3),
-				}.Op())
-
-				// 下邊框
-				paint.FillShape(gtx.Ops, borderColor, clip.Rect{
-					Min: image.Pt(0, gtx.Dp(dt.CellHeight)-3),
-					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-				}.Op())
-
-				// 左邊框
-				paint.FillShape(gtx.Ops, borderColor, clip.Rect{
-					Min: image.Pt(0, 0),
-					Max: image.Pt(3, gtx.Dp(dt.CellHeight)),
-				}.Op())
-
-				// 右邊框
-				paint.FillShape(gtx.Ops, borderColor, clip.Rect{
-					Min: image.Pt(gtx.Dp(dt.CellWidth)-3, 0),
-					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-				}.Op())
-
-				return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
-			}),
-			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-				return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					// 編輯模式：顯示輸入框
-					editorWidget := material.Editor(th, editor, "")
-					editorWidget.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255} // 黑色文字
-					return editorWidget.Layout(gtx)
-				})
-			}),
-		)
 	}
+
+	// 若在編輯模式，持續檢查是否按下 Enter（Text 結尾為 \n）
+	enteredText := editor.Text()
+	if len(enteredText) > 0 && strings.Contains(enteredText, "\n") {
+		trimmed := strings.ReplaceAll(enteredText, "\n", "")
+		dt.updateCellValue(row, col, trimmed)
+		dt.Table.Show()
+		editor.SetText(trimmed)
+		dt.editingCell = ""
+	}
+
+	// 編輯模式介面
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			paint.FillShape(gtx.Ops, color.NRGBA{240, 248, 255, 255}, clip.Rect{
+				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+			}.Op())
+
+			borderColor := color.NRGBA{0, 123, 255, 255}
+
+			// 畫四邊藍色邊框
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(gtx.Dp(dt.CellWidth), 3)}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, gtx.Dp(dt.CellHeight)-3), Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(3, gtx.Dp(dt.CellHeight))}.Op())
+			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(gtx.Dp(dt.CellWidth)-3, 0), Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}.Op())
+
+			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
+		}),
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				editorWidget := material.Editor(th, editor, "")
+				editorWidget.Color = color.NRGBA{0, 0, 0, 255}
+				return editorWidget.Layout(gtx)
+			})
+		}),
+	)
 }
 
 // updateCellValue 更新儲存格的值
@@ -321,6 +302,10 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 	if column := dt.Table.GetColByNumber(col); column != nil {
 		// 使用 Insyra 的更新方法
 		iCol := indexToLetters(col)
+		if newValue == "" || newValue == "." {
+			dt.Table.UpdateElement(row, iCol, nil)
+			return
+		}
 		dt.Table.UpdateElement(row, iCol, newValue)
 	}
 }
