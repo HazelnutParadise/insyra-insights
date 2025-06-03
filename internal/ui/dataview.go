@@ -11,6 +11,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
+	"github.com/HazelnutParadise/Go-Utils/conv"
 	"github.com/HazelnutParadise/insyra"
 )
 
@@ -473,17 +474,17 @@ func (v *DataView) addColumn() {
 	rowCount, colCount := v.dataTable.Table.Size()
 
 	// 新增一個欄位，使用有意義的預設值而不是空字串
-	columnName := "新欄位" + indexToLetters(colCount)
+	columnName := "var" + conv.ToString(colCount)
 	newCol := insyra.NewDataList().SetName(columnName)
 
 	// 為新欄位填入預設值，避免全空導致被刪除
 	for i := 0; i < rowCount; i++ {
-		newCol.Append("值" + strconv.Itoa(i+1))
+		newCol.Append(nil)
 	}
 
 	// 如果沒有行數，至少添加一個預設值
 	if rowCount == 0 {
-		newCol.Append("預設值1")
+		newCol.Append(nil)
 	}
 
 	v.dataTable.Table.AppendCols(newCol)
@@ -499,23 +500,25 @@ func (v *DataView) addRow() {
 	}
 
 	// 獲取目前欄位數量
-	rowCount, colCount := v.dataTable.Table.Size()
+	_, colCount := v.dataTable.Table.Size()
 
 	// 如果沒有欄位，先創建一個預設欄位
 	if colCount == 0 {
-		defaultCol := insyra.NewDataList().SetName("欄位1")
-		defaultCol.Append("值1") // 使用有意義的值而不是空字串
+		defaultCol := insyra.NewDataList().SetName("var1")
+		defaultCol.Append(nil) // 使用有意義的值而不是空字串
 		v.dataTable.Table.AppendCols(defaultCol)
 		v.computeStatistics()
 		return
 	}
 
+	var rowDL = insyra.NewDataList()
 	// 為每個現有欄位新增一個值
 	for i := 0; i < colCount; i++ {
-		if col := v.dataTable.Table.GetColByNumber(i); col != nil {
-			col.Append("新值" + strconv.Itoa(rowCount+1))
-		}
+		rowDL.Append(nil) // 使用有意義的值而不是空字串
 	}
+
+	// 將新行添加到 DataTable
+	v.dataTable.Table.AppendRowsFromDataList(rowDL)
 
 	// 重新計算統計數據
 	v.computeStatistics()
