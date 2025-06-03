@@ -2,7 +2,6 @@ package ui
 
 import (
 	"image/color"
-	"time"
 
 	"gioui.org/layout"
 	"gioui.org/text"
@@ -50,6 +49,7 @@ func (v *WelcomeView) Layout(gtx layout.Context, th *material.Theme) layout.Dime
 	title := material.H1(th, i18n.T("welcome.title"))
 	title.Alignment = text.Middle
 	title.Color = primaryColor
+	title.TextSize = unit.Sp(32) // 設置標題字體大小
 
 	subtitle := material.H4(th, i18n.T("welcome.subtitle"))
 	subtitle.Alignment = text.Middle
@@ -242,34 +242,23 @@ func (v *WelcomeView) handleEvents(gtx layout.Context) {
 				v.message = "無法開啟檔案選擇對話框: " + result.Err.Error()
 				v.messageColor = color.NRGBA{R: 244, G: 67, B: 54, A: 255} // 紅色
 				return
-			}
-
-			// 匯入資料
+			} // 匯入資料
 			importResult := ImportData(result.Path, ImportSQLite)
 			if importResult.Success {
 				v.message = importResult.Message
-				v.messageColor = color.NRGBA{R: 76, G: 175, B: 80, A: 255} // 綠色			} else {
+				v.messageColor = color.NRGBA{R: 76, G: 175, B: 80, A: 255} // 綠色
+			} else {
 				v.message = "匯入失敗: " + importResult.Message
 				v.messageColor = color.NRGBA{R: 244, G: 67, B: 54, A: 255} // 紅色
 			}
 		}()
 	}
+
 	if v.startAnalysisButton.Clicked(gtx) {
-		v.message = i18n.T("messages.creating_project")
-		v.messageColor = color.NRGBA{R: 76, G: 175, B: 80, A: 255} // 綠色
-
-		// 模擬創建專案的過程
-		go func() {
-			// 模擬載入過程
-			time.Sleep(time.Second * 1)
-			v.message = i18n.T("messages.project_ready")
-
-			// 如果有設置 viewController，則切換到數據視圖
-			if v.viewController != nil {
-				// 切換到數據視圖
-				v.viewController.SwitchView("data")
-			}
-		}()
+		// 直接切換到資料頁面，不需要等待
+		if v.viewController != nil {
+			v.viewController.SwitchView("data")
+		}
 	}
 }
 

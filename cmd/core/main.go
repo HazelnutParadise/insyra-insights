@@ -29,12 +29,22 @@ func run(window *app.Window) error {
 	theme := material.NewTheme()
 	var ops op.Ops
 	// 創建視圖控制器
-	viewController := ui.NewViewController(theme) // 註冊視圖
+	viewController := ui.NewViewController(theme)
+
+	// 創建視圖實例
+	dataView := ui.NewDataView()
+
+	// 載入樣本數據到 DataView
+	dataView.LoadSampleData()
+
+	// 設置視圖控制器引用
+	dataView.SetViewController(viewController)
+
+	// 註冊視圖
 	viewController.RegisterView("welcome", ui.NewWelcomeView())
-	viewController.RegisterView("home", ui.NewHomeView())
 	viewController.RegisterView("about", ui.NewAboutView())
 	viewController.RegisterView("settings", ui.NewSettingsView())
-	viewController.RegisterView("data", ui.NewDataView())
+	viewController.RegisterView("data", dataView)
 
 	// 設置初始視圖
 	viewController.SwitchView("welcome")
@@ -43,6 +53,7 @@ func run(window *app.Window) error {
 	var homeButton widget.Clickable
 	var aboutButton widget.Clickable
 	var settingsButton widget.Clickable
+	var dataButton widget.Clickable
 
 	for {
 		switch e := window.Event().(type) {
@@ -50,7 +61,8 @@ func run(window *app.Window) error {
 			return e.Err
 		case app.FrameEvent:
 			// 創建圖形上下文
-			gtx := app.NewContext(&ops, e) // 處理按鈕點擊
+			gtx := app.NewContext(&ops, e)
+			// 處理按鈕點擊
 			if welcomeButton.Clicked(gtx) {
 				viewController.SwitchView("welcome")
 			}
@@ -62,6 +74,9 @@ func run(window *app.Window) error {
 			}
 			if settingsButton.Clicked(gtx) {
 				viewController.SwitchView("settings")
+			}
+			if dataButton.Clicked(gtx) {
+				viewController.SwitchView("data")
 			}
 
 			// 佈局界面
@@ -77,17 +92,20 @@ func run(window *app.Window) error {
 					return layout.Flex{
 						Axis: layout.Horizontal,
 					}.Layout(gtx,
-						layout.Flexed(0.25, func(gtx layout.Context) layout.Dimensions {
+						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &welcomeButton, "歡迎").Layout(gtx)
 						}),
-						layout.Flexed(0.25, func(gtx layout.Context) layout.Dimensions {
+						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &homeButton, "首頁").Layout(gtx)
 						}),
-						layout.Flexed(0.25, func(gtx layout.Context) layout.Dimensions {
+						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &aboutButton, "關於").Layout(gtx)
 						}),
-						layout.Flexed(0.25, func(gtx layout.Context) layout.Dimensions {
+						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
 							return material.Button(theme, &settingsButton, "設定").Layout(gtx)
+						}),
+						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
+							return material.Button(theme, &dataButton, "資料").Layout(gtx)
 						}),
 					)
 				}),

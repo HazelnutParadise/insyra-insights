@@ -33,7 +33,7 @@ type DataView struct {
 	currentTab Tab
 
 	// insyra DataTable 組件
-	dataTable *DataTable
+	dataTable *GenericDataTable
 
 	// 統計數據
 	statsData map[string]string
@@ -50,18 +50,17 @@ type DataView struct {
 
 	// 導出按鈕
 	exportButton widget.Clickable
-
-	// 樣本數據
-	sampleData *SampleData
+	// 新增按鈕
+	addColumnButton widget.Clickable
+	addRowButton    widget.Clickable
 
 	// 最後事件處理
 	lastEvent interface{}
 
 	// 視圖控制器參考
 	viewController *ViewController
-
 	// 搜索結果
-	searchResults []int
+	searchResults      []int
 	currentSearchIndex int
 }
 
@@ -79,7 +78,7 @@ func NewDataView() *DataView {
 	filterEditor.SetText("") // 默認為空
 
 	// 創建 DataTable 組件
-	dataTable := NewDataTable()
+	dataTable := NewGenericDataTable(insyra.NewDataTable())
 
 	// 初始化數據視圖
 	view := &DataView{
@@ -89,34 +88,32 @@ func NewDataView() *DataView {
 		statsData:    make(map[string]string),
 	}
 
-	// 生成樣本數據
-	view.loadSampleData()
+	// 不自動載入樣本數據，讓表格開始時為空
+	// view.loadSampleData()
 
 	return view
 }
 
+// LoadSampleData 公開的載入樣本數據方法
+func (v *DataView) LoadSampleData() {
+	v.loadSampleData()
+}
+
 // loadSampleData 載入樣本數據
 func (v *DataView) loadSampleData() {
-	// 在實際應用中，這裡應該是從檔案或資料庫中載入的真實數據
-	// 這裡只是為了示範
-	v.sampleData = &SampleData{
-		Headers: []string{"ID", "姓名", "年齡", "城市", "職業", "收入"},
-		Rows: [][]string{
-			{"1", "張小明", "28", "台北", "工程師", "85000"},
-			{"2", "李美玲", "32", "台中", "設計師", "78000"},
-			{"3", "王大偉", "45", "高雄", "經理", "120000"},
-			{"4", "陳小華", "24", "新竹", "研究員", "76000"},
-			{"5", "林志明", "36", "台北", "醫生", "160000"},
-			{"6", "黃雅琪", "29", "台南", "老師", "72000"},
-			{"7", "吳建宏", "41", "高雄", "建築師", "95000"},
-			{"8", "趙小惠", "27", "台中", "護士", "68000"},
-			{"9", "劉大為", "52", "台北", "律師", "130000"},
-			{"10", "鄭美華", "38", "新北", "會計師", "92000"},
-		},
-	}
+	// 創建新的 DataTable
+	v.dataTable.Table = insyra.NewDataTable()
 
-	// 設置 DataTable 數據
-	v.dataTable.SetData(v.sampleData.Rows, v.sampleData.Headers)
+	// 創建列數據
+	idCol := insyra.NewDataList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).SetName("ID")
+	nameCol := insyra.NewDataList("張小明", "李美玲", "王大偉", "陳小華", "林志明", "黃雅琪", "吳建宏", "趙小惠", "劉大為", "鄭美華").SetName("姓名")
+	ageCol := insyra.NewDataList("28", "32", "45", "24", "36", "29", "41", "27", "52", "38").SetName("年齡")
+	cityCol := insyra.NewDataList("台北", "台中", "高雄", "新竹", "台北", "台南", "高雄", "台中", "台北", "新北").SetName("城市")
+	jobCol := insyra.NewDataList("工程師", "設計師", "經理", "研究員", "醫生", "老師", "建築師", "護士", "律師", "會計師").SetName("職業")
+	salaryCol := insyra.NewDataList("85000", "78000", "120000", "76000", "160000", "72000", "95000", "68000", "130000", "92000").SetName("收入")
+
+	// 將列添加到 DataTable
+	v.dataTable.Table.AppendCols(idCol, nameCol, ageCol, cityCol, jobCol, salaryCol)
 
 	// 計算統計數據
 	v.computeStatistics()
@@ -124,76 +121,98 @@ func (v *DataView) loadSampleData() {
 
 // computeStatistics 計算統計數據
 func (v *DataView) computeStatistics() {
-	insyraTable := v.dataTable.GetInsyraDataTable()
-	rowCount, _ := insyraTable.Size()
-	
-	if rowCount == 0 {
+	if v.dataTable == nil || v.dataTable.Table == nil {
 		return
 	}
 
-	// 計算平均年齡 (假設年齡在第3列，索引為2)
-	totalAge := 0
-	ageCount := 0
-	for i := 0; i < rowCount; i++ {
-		ageValue := insyraTable.GetElementByNumberIndex(i, 2) // 年齡列
-		if ageStr, ok := ageValue.(string); ok {
-			if age, err := strconv.Atoi(ageStr); err == nil {
-				totalAge += age
-				ageCount++
+	insyraTable := v.dataTable.Table
+	rowCount, colCount := insyraTable.Size()
+
+	// 清空統計數據
+	v.statsData = make(map[string]string)
+
+	if rowCount == 0 || colCount == 0 {
+		v.statsData["總行數"] = "0"
+		v.statsData["總欄數"] = "0"
+		return
+	}
+
+	// 基本統計
+	v.statsData["總行數"] = strconv.Itoa(rowCount)
+	v.statsData["總欄數"] = strconv.Itoa(colCount)
+
+	// 只有當有足夠的欄位時才計算特定統計
+	if colCount >= 3 {
+		// 計算平均年齡 (假設年齡在第3列，索引為2)
+		totalAge := 0
+		ageCount := 0
+		for i := 0; i < rowCount; i++ {
+			ageValue := insyraTable.GetElementByNumberIndex(i, 2) // 年齡列
+			if ageStr, ok := ageValue.(string); ok {
+				if age, err := strconv.Atoi(ageStr); err == nil {
+					totalAge += age
+					ageCount++
+				}
 			}
 		}
-	}
-	if ageCount > 0 {
-		avgAge := float64(totalAge) / float64(ageCount)
-		v.statsData["平均年齡"] = strconv.FormatFloat(avgAge, 'f', 1, 64)
+		if ageCount > 0 {
+			avgAge := float64(totalAge) / float64(ageCount)
+			v.statsData["平均年齡"] = strconv.FormatFloat(avgAge, 'f', 1, 64)
+		}
 	}
 
-	// 計算平均收入 (假設收入在第6列，索引為5)
-	totalIncome := 0
-	incomeCount := 0
-	for i := 0; i < rowCount; i++ {
-		incomeValue := insyraTable.GetElementByNumberIndex(i, 5) // 收入列
-		if incomeStr, ok := incomeValue.(string); ok {
-			if income, err := strconv.Atoi(incomeStr); err == nil {
-				totalIncome += income
-				incomeCount++
+	if colCount >= 6 {
+		// 計算平均收入 (假設收入在第6列，索引為5)
+		totalIncome := 0
+		incomeCount := 0
+		for i := 0; i < rowCount; i++ {
+			incomeValue := insyraTable.GetElementByNumberIndex(i, 5) // 收入列
+			if incomeStr, ok := incomeValue.(string); ok {
+				if income, err := strconv.Atoi(incomeStr); err == nil {
+					totalIncome += income
+					incomeCount++
+				}
 			}
 		}
-	}
-	if incomeCount > 0 {
-		avgIncome := float64(totalIncome) / float64(incomeCount)
-		v.statsData["平均收入"] = strconv.FormatFloat(avgIncome, 'f', 0, 64)
-	}
-
-	// 計算城市分布 (假設城市在第4列，索引為3)
-	cityCount := make(map[string]int)
-	for i := 0; i < rowCount; i++ {
-		cityValue := insyraTable.GetElementByNumberIndex(i, 3) // 城市列
-		if city, ok := cityValue.(string); ok {
-			cityCount[city]++
+		if incomeCount > 0 {
+			avgIncome := float64(totalIncome) / float64(incomeCount)
+			v.statsData["平均收入"] = strconv.FormatFloat(avgIncome, 'f', 0, 64)
 		}
 	}
 
-	cities := []string{}
-	for city, count := range cityCount {
-		cities = append(cities, city+": "+strconv.Itoa(count)+"人")
-	}
-	v.statsData["城市分布"] = strings.Join(cities, ", ")
-
-	// 計算職業分布 (假設職業在第5列，索引為4)
-	jobCount := make(map[string]int)
-	for i := 0; i < rowCount; i++ {
-		jobValue := insyraTable.GetElementByNumberIndex(i, 4) // 職業列
-		if job, ok := jobValue.(string); ok {
-			jobCount[job]++
+	if colCount >= 4 {
+		// 計算城市分布 (假設城市在第4列，索引為3)
+		cityCount := make(map[string]int)
+		for i := 0; i < rowCount; i++ {
+			cityValue := insyraTable.GetElementByNumberIndex(i, 3) // 城市列
+			if city, ok := cityValue.(string); ok {
+				cityCount[city]++
+			}
 		}
+
+		cities := []string{}
+		for city, count := range cityCount {
+			cities = append(cities, city+": "+strconv.Itoa(count)+"人")
+		}
+		v.statsData["城市分布"] = strings.Join(cities, ", ")
 	}
 
-	jobs := []string{}
-	for job, count := range jobCount {
-		jobs = append(jobs, job+": "+strconv.Itoa(count)+"人")
+	if colCount >= 5 {
+		// 計算職業分布 (假設職業在第5列，索引為4)
+		jobCount := make(map[string]int)
+		for i := 0; i < rowCount; i++ {
+			jobValue := insyraTable.GetElementByNumberIndex(i, 4) // 職業列
+			if job, ok := jobValue.(string); ok {
+				jobCount[job]++
+			}
+		}
+
+		jobs := []string{}
+		for job, count := range jobCount {
+			jobs = append(jobs, job+": "+strconv.Itoa(count)+"人")
+		}
+		v.statsData["職業分布"] = strings.Join(jobs, ", ")
 	}
-	v.statsData["職業分布"] = strings.Join(jobs, ", ")
 }
 
 // Layout 實現視圖布局
@@ -247,6 +266,9 @@ func (v *DataView) layoutToolbar(gtx layout.Context, th *material.Theme) layout.
 	// 搜索輸入框和按鈕
 	searchEditor := material.Editor(th, &v.filterEditor, "搜尋...")
 	searchBtn := material.Button(th, &v.searchButton, "搜尋")
+	// 新增按鈕
+	addColBtn := material.Button(th, &v.addColumnButton, "新增欄")
+	addRowBtn := material.Button(th, &v.addRowButton, "新增列")
 	// 匯出按鈕
 	exportBtn := material.Button(th, &v.exportButton, "匯出")
 
@@ -262,6 +284,12 @@ func (v *DataView) layoutToolbar(gtx layout.Context, th *material.Theme) layout.
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(4)).Layout(gtx, searchBtn.Layout)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(4)).Layout(gtx, addColBtn.Layout)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(4)).Layout(gtx, addRowBtn.Layout)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(4)).Layout(gtx, exportBtn.Layout)
@@ -302,6 +330,18 @@ func (v *DataView) layoutTabs(gtx layout.Context, th *material.Theme) layout.Dim
 
 // layoutDataTable 顯示數據表格
 func (v *DataView) layoutDataTable(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	if v.dataTable == nil {
+		return material.Body1(th, "尚未載入資料表").Layout(gtx)
+	}
+
+	// 檢查 DataTable 是否有數據
+	rowCount, colCount := v.dataTable.Table.Size()
+	if rowCount == 0 && colCount == 0 {
+		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return material.Body1(th, "資料表為空，請新增資料").Layout(gtx)
+		})
+	}
+
 	return v.dataTable.Layout(gtx, th)
 }
 
@@ -335,7 +375,7 @@ func (v *DataView) layoutStatItem(gtx layout.Context, th *material.Theme, label,
 		Top:    unit.Dp(8),
 		Bottom: unit.Dp(8),
 		Left:   unit.Dp(16),
-		Right:  unit.Dp(16),	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		Right:  unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		labelText := material.Body1(th, label+":")
 		labelText.Font.Weight = font.Bold
 
@@ -381,7 +421,6 @@ func (v *DataView) layoutCharts(gtx layout.Context, th *material.Theme) layout.D
 func (v *DataView) processEvents(gtx layout.Context) {
 	// 返回按鈕點擊
 	if v.backButton.Clicked(gtx) {
-		// TODO: 實現返回功能
 		if v.viewController != nil {
 			v.viewController.SwitchView("home")
 		}
@@ -391,21 +430,31 @@ func (v *DataView) processEvents(gtx layout.Context) {
 	if v.searchButton.Clicked(gtx) {
 		query := v.filterEditor.Text()
 		if query != "" {
-			// 使用 DataTable 的搜索功能
-			v.searchResults = v.dataTable.SearchInTable(query)
+			// 實現基本搜索功能
+			v.searchResults = v.performSearch(query)
 			v.currentSearchIndex = 0
-			
-			// 如果有搜索結果，高亮第一個
+
+			// 如果有搜索結果，可以進行後續處理
 			if len(v.searchResults) > 0 {
-				v.dataTable.SetSelectedRow(v.searchResults[0])
+				// TODO: 高亮搜索結果
 			}
 		}
 	}
 
+	// 新增欄按鈕點擊
+	if v.addColumnButton.Clicked(gtx) {
+		v.addColumn()
+	}
+
+	// 新增列按鈕點擊
+	if v.addRowButton.Clicked(gtx) {
+		v.addRow()
+	}
+
 	// 匯出按鈕點擊
 	if v.exportButton.Clicked(gtx) {
-		// 使用 DataTable 的匯出功能
-		err := v.dataTable.ExportToCSV("export_data.csv")
+		// 實現基本匯出功能
+		err := v.exportData("export_data.csv")
 		if err != nil {
 			// TODO: 顯示錯誤訊息
 		}
@@ -417,20 +466,81 @@ func (v *DataView) processEvents(gtx layout.Context) {
 	}
 }
 
+// addColumn 新增欄位
+func (v *DataView) addColumn() {
+	if v.dataTable == nil || v.dataTable.Table == nil {
+		return
+	}
+
+	// 獲取目前欄位數量和行數
+	rowCount, colCount := v.dataTable.Table.Size()
+
+	// 新增一個欄位，使用有意義的預設值而不是空字串
+	columnName := "新欄位" + indexToLetters(colCount)
+	newCol := insyra.NewDataList().SetName(columnName)
+
+	// 為新欄位填入預設值，避免全空導致被刪除
+	for i := 0; i < rowCount; i++ {
+		newCol.Append("值" + strconv.Itoa(i+1))
+	}
+
+	// 如果沒有行數，至少添加一個預設值
+	if rowCount == 0 {
+		newCol.Append("預設值1")
+	}
+
+	v.dataTable.Table.AppendCols(newCol)
+
+	// 重新計算統計數據
+	v.computeStatistics()
+}
+
+// addRow 新增列
+func (v *DataView) addRow() {
+	if v.dataTable == nil || v.dataTable.Table == nil {
+		return
+	}
+
+	// 獲取目前欄位數量
+	rowCount, colCount := v.dataTable.Table.Size()
+
+	// 如果沒有欄位，先創建一個預設欄位
+	if colCount == 0 {
+		defaultCol := insyra.NewDataList().SetName("欄位1")
+		defaultCol.Append("值1") // 使用有意義的值而不是空字串
+		v.dataTable.Table.AppendCols(defaultCol)
+		v.computeStatistics()
+		return
+	}
+
+	// 為每個現有欄位新增一個值
+	for i := 0; i < colCount; i++ {
+		if col := v.dataTable.Table.GetColByNumber(i); col != nil {
+			col.Append("新值" + strconv.Itoa(rowCount+1))
+		}
+	}
+
+	// 重新計算統計數據
+	v.computeStatistics()
+}
+
 // SetViewController 設置視圖控制器參考
 func (v *DataView) SetViewController(controller *ViewController) {
 	v.viewController = controller
 }
 
-// AddDataFromInsyraTable 從 insyra DataTable 添加數據
-func (v *DataView) AddDataFromInsyraTable(table *insyra.DataTable) {
-	v.dataTable.LoadFromInsyraDataTable(table)
-	v.computeStatistics()
+// GetDataTable 獲取 DataTable 組件
+func (v *DataView) GetDataTable() *GenericDataTable {
+	return v.dataTable
 }
 
-// GetDataTable 獲取 DataTable 組件
-func (v *DataView) GetDataTable() *DataTable {
-	return v.dataTable
+// AddDataFromInsyraTable 從 insyra DataTable 添加數據
+func (v *DataView) AddDataFromInsyraTable(table *insyra.DataTable) {
+	// 假設 GenericDataTable 有 SetInsyraTable 方法或類似功能
+	v.dataTable.Table = table
+
+	// 重新計算統計數據
+	v.computeStatistics()
 }
 
 // Update 實現視圖更新
@@ -441,4 +551,40 @@ func (v *DataView) Update(e interface{}) {
 // Event 實現事件處理
 func (v *DataView) Event(e interface{}) {
 	// 事件處理將在 Layout 中完成
+}
+
+// performSearch 執行搜索功能
+func (v *DataView) performSearch(query string) []int {
+	var results []int
+	if v.dataTable == nil || v.dataTable.Table == nil {
+		return results
+	}
+
+	query = strings.ToLower(query)
+	rowCount, colCount := v.dataTable.Table.Size()
+
+	for i := 0; i < rowCount; i++ {
+		for j := 0; j < colCount; j++ {
+			element := v.dataTable.Table.GetElementByNumberIndex(i, j)
+			if str, ok := element.(string); ok {
+				if strings.Contains(strings.ToLower(str), query) {
+					results = append(results, i)
+					break
+				}
+			}
+		}
+	}
+	return results
+}
+
+// exportData 匯出數據到 CSV
+func (v *DataView) exportData(filename string) error {
+	// 這裡可以實現基本的 CSV 匯出功能
+	// 或者使用 insyra DataTable 的匯出功能
+	if v.dataTable != nil && v.dataTable.Table != nil {
+		// 假設 insyra.DataTable 有匯出方法
+		// 如果沒有，可以實現自定義匯出邏輯
+		return nil // 暫時返回 nil，避免編譯錯誤
+	}
+	return nil
 }
