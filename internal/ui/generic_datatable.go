@@ -320,14 +320,8 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 	// 獲取對應的列
 	if column := dt.Table.GetColByNumber(col); column != nil {
 		// 使用 Insyra 的更新方法
-		colName := column.GetName()
-		data := dt.Table.Data()
-		if colData, exists := data[colName]; exists {
-			if row >= 0 && row < len(colData) {
-				// 直接更新資料
-				colData[row] = newValue
-			}
-		}
+		iCol := indexToLetters(col)
+		dt.Table.UpdateElement(row, iCol, newValue)
 	}
 }
 
