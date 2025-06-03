@@ -30,10 +30,8 @@ const (
 type DataView struct {
 	// 標籤頁控制
 	tabs       *widget.Enum
-	currentTab Tab
-
-	// insyra DataTable 組件
-	dataTable *GenericDataTable
+	currentTab Tab // insyra DataTable 組件
+	dataTable  *GenericDataTable
 
 	// 統計數據
 	statsData map[string]string
@@ -75,9 +73,7 @@ func NewDataView() *DataView {
 		SingleLine: true,
 		Submit:     true,
 	}
-	filterEditor.SetText("") // 默認為空
-
-	// 創建 DataTable 組件
+	filterEditor.SetText("") // 默認為空	// 創建 DataTable 組件
 	dataTable := NewGenericDataTable(insyra.NewDataTable())
 
 	// 初始化數據視圖

@@ -1,4 +1,4 @@
-// GenericDataTable 是一個可繪製 Insyra DataTable 的 UI 表格組件，支援雙索引格式
+// GenericDataTable 是一個可繪製 Insyra DataTable 的 UI 表格組件，支援雙向捲動
 package ui
 
 import (
@@ -24,9 +24,11 @@ type GenericDataTable struct {
 	BorderColor   color.NRGBA
 
 	// 編輯功能
-	cellEditors  map[string]*widget.Editor    // 儲存格編輯器 (key: "row:col")
-	cellClickers map[string]*widget.Clickable // 儲存格點擊器 (key: "row:col")
-	editingCell  string                       // 當前編輯的儲存格
+	cellEditors    map[string]*widget.Editor    // 儲存格編輯器 (key: "row:col")
+	cellClickers   map[string]*widget.Clickable // 儲存格點擊器 (key: "row:col")
+	editingCell    string                       // 當前編輯的儲存格	// 捲動控制
+	verticalList   widget.List
+	horizontalList widget.List
 }
 
 func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
@@ -53,24 +55,25 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 		return layout.Dimensions{}
 	}
 
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.drawColumnIndexRow(gtx, th, cols)
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.drawColumnNameRow(gtx, th, cols)
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			var children []layout.FlexChild
-			for i := 0; i < rows; i++ {
-				rowName := dt.Table.GetRowNameByIndex(i)
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.drawDataRow(gtx, th, i, cols, rowName)
-				}))
-			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-		}),
-	)
+	// 設置垂直捲動
+	dt.verticalList.Axis = layout.Vertical
+	// 設置水平捲動
+	dt.horizontalList.Axis = layout.Horizontal
+
+	// 計算表格總寬度
+	totalWidth := int(dt.CellWidth) * (cols + 2) // +2 for row index and name
+
+	// 使用嵌套的 List 來實現雙向滾動
+	return material.List(th, &dt.verticalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+		// 內層水平滾動
+		return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+			// 設置完整的表格尺寸
+			gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+
+			// 渲染完整的表格
+			return dt.layoutFullTable(gtx, th, rows, cols)
+		})
+	})
 }
 
 func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
@@ -83,8 +86,9 @@ func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.
 	}))
 	for i := 0; i < cols; i++ {
 		label := indexToLetters(i)
+		currentLabel := label // 捕獲迴圈變數
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.headerCell(gtx, th, label)
+			return dt.headerCell(gtx, th, currentLabel)
 		}))
 	}
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
@@ -100,8 +104,9 @@ func (dt *GenericDataTable) drawColumnNameRow(gtx layout.Context, th *material.T
 	}))
 	for i := 0; i < cols; i++ {
 		name := dt.Table.GetColByNumber(i).GetName()
+		currentName := name // 捕獲迴圈變數
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.headerCell(gtx, th, name)
+			return dt.headerCell(gtx, th, currentName)
 		}))
 	}
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
@@ -131,8 +136,15 @@ func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, 
 
 		// 為每個儲存格添加編輯功能
 		cellKey := fmt.Sprintf("%d:%d", row, i)
+
+		// 捕獲迴圈變數
+		currentText := text
+		currentCellKey := cellKey
+		currentRow := row
+		currentCol := i
+
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.editableCell(gtx, th, text, cellKey, row, i)
+			return dt.editableCell(gtx, th, currentText, currentCellKey, currentRow, currentCol)
 		}))
 	}
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
@@ -322,4 +334,29 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 			}
 		}
 	}
+}
+
+func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.Theme, rows, cols int) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// 列索引行 (A, B, C, ...)
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return dt.drawColumnIndexRow(gtx, th, cols)
+		}),
+		// 列名稱行
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return dt.drawColumnNameRow(gtx, th, cols)
+		}),
+		// 數據行
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			var children []layout.FlexChild
+			for i := 0; i < rows; i++ {
+				rowName := dt.Table.GetRowNameByIndex(i)
+				rowIndex := i // 捕獲迴圈變數
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return dt.drawDataRow(gtx, th, rowIndex, cols, rowName)
+				}))
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		}),
+	)
 }
