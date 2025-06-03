@@ -16,6 +16,9 @@ import (
 func main() {
 	go func() {
 		window := new(app.Window)
+		window.Option(
+			app.Title("Insyra Insights"),
+		)
 		err := run(window)
 		if err != nil {
 			log.Fatal(err)

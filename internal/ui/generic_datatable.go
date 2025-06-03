@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/HazelnutParadise/insyra"
+	"github.com/mattn/go-runewidth"
 )
 
 type GenericDataTable struct {
@@ -25,9 +26,13 @@ type GenericDataTable struct {
 	BorderColor   color.NRGBA
 
 	// 編輯功能
-	cellEditors    map[string]*widget.Editor    // 儲存格編輯器 (key: "row:col")
-	cellClickers   map[string]*widget.Clickable // 儲存格點擊器 (key: "row:col")
-	editingCell    string                       // 當前編輯的儲存格	// 捲動控制
+	cellEditors     map[string]*widget.Editor    // 儲存格編輯器 (key: "row:col")
+	cellClickers    map[string]*widget.Clickable // 儲存格點擊器 (key: "row:col")
+	editingCell     string                       // 當前編輯的儲存格
+	selectedContent string                       // 已選中格子的完整內容
+	selectedCellKey string                       // 已選中格子的索引
+
+	// 捲動控制
 	verticalList   widget.List
 	horizontalList widget.List
 }
@@ -64,17 +69,65 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 	// 計算表格總寬度
 	totalWidth := int(dt.CellWidth) * (cols + 2) // +2 for row index and name
 
-	// 使用嵌套的 List 來實現雙向滾動
-	return material.List(th, &dt.verticalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-		// 內層水平滾動
-		return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-			// 設置完整的表格尺寸
-			gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+	// 使用垂直 Flex 佈局來組合選中內容顯示和表格
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// 選中內容區域顯示
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if dt.selectedContent == "" {
+				return layout.Dimensions{}
+			}
 
-			// 渲染完整的表格
-			return dt.layoutFullTable(gtx, th, rows, cols)
-		})
-	})
+			// 顯示選中儲存格的信息
+			var cellInfo string
+			if dt.selectedCellKey != "" {
+				parts := strings.Split(dt.selectedCellKey, ":")
+				if len(parts) == 2 {
+					row, _ := strconv.Atoi(parts[0])
+					col, _ := strconv.Atoi(parts[1])
+					colLetter := indexToLetters(col)
+					cellInfo = fmt.Sprintf("已選中 %s%d: ", colLetter, row+1) // 加1讓行號從1開始計數，更直觀
+				}
+			}
+
+			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// 使用水平佈局分開顯示位置和內容
+				return layout.Flex{
+					Axis:      layout.Horizontal,
+					Alignment: layout.Start,
+				}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// 儲存格位置標籤
+						infoLabel := material.Body1(th, cellInfo)
+						infoLabel.Color = color.NRGBA{0, 0, 128, 255} // 藍色
+						return infoLabel.Layout(gtx)
+					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						// 儲存格內容標籤
+						contentLabel := material.Body1(th, dt.selectedContent)
+						contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色						// 設置最小寬度為0，允許文本擴展
+						contentGtx := gtx
+						contentGtx.Constraints.Min.X = 0
+						return contentLabel.Layout(contentGtx)
+					}),
+				)
+			})
+		}),
+
+		// 表格區域
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			// 使用嵌套的 List 來實現雙向滾動
+			return material.List(th, &dt.verticalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+				// 內層水平滾動
+				return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					// 設置完整的表格尺寸
+					gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+
+					// 渲染完整的表格
+					return dt.layoutFullTable(gtx, th, rows, cols)
+				})
+			})
+		}),
+	)
 }
 
 func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
@@ -225,10 +278,11 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 
 	editor := dt.cellEditors[cellKey]
 	clicker := dt.cellClickers[cellKey]
-
 	// 若使用者點擊儲存格，進入編輯模式
 	if clicker.Clicked(gtx) {
 		dt.editingCell = cellKey
+		dt.selectedCellKey = cellKey
+		dt.selectedContent = text
 		editor.SetText(text)
 	}
 
@@ -248,13 +302,29 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 				}),
 				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return material.Body2(th, text).Layout(gtx)
+						// 計算可用的字符數，中文字符寬度為2，英文為1
+						// 這裡我們根據儲存格寬度估算可顯示的字符數
+						// 調整為更保守的值以確保不會溢出
+						maxChars := int(dt.CellWidth) / 10
+						if maxChars < 4 {
+							maxChars = 4 // 至少顯示幾個字符
+						}
+
+						// 使用改進的 truncateText 函數截斷文字
+						displayText := truncateText(text, maxChars)
+
+						// 當被點擊時，記錄選中的儲存格內容
+						if clicker.Clicked(gtx) {
+							dt.selectedCellKey = cellKey
+							dt.selectedContent = text
+						}
+
+						return material.Body2(th, displayText).Layout(gtx)
 					})
 				}),
 			)
 		})
 	}
-
 	// 若在編輯模式，持續檢查是否按下 Enter（Text 包含 \n）
 	enteredText := editor.Text()
 	if len(enteredText) > 0 && strings.Contains(enteredText, "\n") {
@@ -262,6 +332,10 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 		dt.updateCellValue(row, col, trimmed)
 		dt.Table.Show()
 		editor.SetText(trimmed)
+
+		// 更新選中的內容
+		dt.selectedContent = trimmed
+
 		dt.editingCell = ""
 	} // 編輯模式介面
 	// 先保存原始約束條件
@@ -304,10 +378,26 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			// 使用 Expanded 讓編輯器能夠占滿整個儲存格，並能接收點擊
 			// 使用最小的內邊距，讓輸入框盡可能佔滿整個儲存格
-			return layout.UniformInset(unit.Dp(2)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(2)).Layout(gtx, func(gtx layout.Context) layout.Dimensions { // 設置編輯器屬性，確保單行顯示和按 Enter 提交
+
+				// 建立編輯器小工具
 				editorWidget := material.Editor(th, editor, "")
 				editorWidget.Color = color.NRGBA{0, 0, 0, 255}
-				// 設置較大的尺寸，確保點擊區域足夠大
+
+				// 留出更多邊距確保文字不會貼邊
+				maxWidth := cellWidth - 8
+				maxHeight := cellHeight - 4
+
+				// 設置最大和最小約束，確保編輯器大小固定
+				gtx.Constraints.Min = image.Point{X: maxWidth, Y: maxHeight}
+				gtx.Constraints.Max = image.Point{X: maxWidth, Y: maxHeight}
+
+				// 確保此格子在選中時，顯示完整內容在頂部區域
+				if dt.editingCell == cellKey {
+					dt.selectedCellKey = cellKey
+					dt.selectedContent = editor.Text()
+				}
+
 				return editorWidget.Layout(gtx)
 			})
 		}),
@@ -355,4 +445,32 @@ func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.The
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
 	)
+}
+
+// truncateText 根據最大寬度截斷文字，支援中文等寬字符
+func truncateText(text string, maxWidth int) string {
+	// 處理空字符串的情況
+	if text == "" || maxWidth <= 0 {
+		return ""
+	}
+
+	// 判斷文字是否超過限制寬度
+	textWidth := runewidth.StringWidth(text)
+	if textWidth <= maxWidth {
+		return text
+	}
+
+	// 若字符數很少但寬度超出，可能是表情符號或其他特殊Unicode字符
+	// 在這種情況下，簡單地限制字符數
+	if len(text) <= 3 && textWidth > maxWidth {
+		return "..."
+	}
+
+	// 保守處理：確保省略號有足夠空間
+	if maxWidth <= 3 {
+		return "..."
+	}
+
+	// 使用 runewidth 的 Truncate 方法，這會正確處理各種 Unicode 字符
+	return runewidth.Truncate(text, maxWidth-1, "…") // 使用單個省略號字符節省空間
 }
