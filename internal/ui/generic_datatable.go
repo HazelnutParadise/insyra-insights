@@ -78,9 +78,7 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 
 func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
 	var children []layout.FlexChild
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.cell(gtx, th, "")
-	}))
+	// 只使用一個儲存格作為行標頭
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return dt.cell(gtx, th, "")
 	}))
@@ -96,11 +94,9 @@ func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.
 
 func (dt *GenericDataTable) drawColumnNameRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
 	var children []layout.FlexChild
+	// 只使用一個儲存格作為行標頭
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.cell(gtx, th, "")
-	}))
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.cell(gtx, th, "")
+		return dt.headerCell(gtx, th, "行/欄")
 	}))
 	for i := 0; i < cols; i++ {
 		name := dt.Table.GetColByNumber(i).GetName()
@@ -114,11 +110,10 @@ func (dt *GenericDataTable) drawColumnNameRow(gtx layout.Context, th *material.T
 
 func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int, rowName string) layout.Dimensions {
 	var children []layout.FlexChild
+	// 將行索引和行名稱合併在同一格內
+	combinedText := fmt.Sprintf("%s: %s", strconv.Itoa(row), rowName)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.headerCell(gtx, th, strconv.Itoa(row))
-	}))
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.headerCell(gtx, th, rowName)
+		return dt.headerCell(gtx, th, combinedText)
 	}))
 	// 使用 Data() 方法獲取所有資料
 	data := dt.Table.Data()

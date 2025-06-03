@@ -110,6 +110,7 @@ func (v *DataView) loadSampleData() {
 
 	// 將列添加到 DataTable
 	v.dataTable.Table.AppendCols(idCol, nameCol, ageCol, cityCol, jobCol, salaryCol)
+	v.dataTable.Table.SetColToRowNames("A")
 
 	// 計算統計數據
 	v.computeStatistics()
