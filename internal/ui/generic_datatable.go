@@ -56,18 +56,18 @@ type GenericDataTable struct {
 
 func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 	dt := &GenericDataTable{
-		Table:             tbl,
-		CellWidth:         unit.Dp(80),
-		CellHeight:        unit.Dp(32),
-		HeaderBgColor:     color.NRGBA{R: 245, G: 246, B: 250, A: 255}, // 更柔和的標題背景色
-		BorderColor:       color.NRGBA{R: 225, G: 228, B: 232, A: 255}, // 更柔和的邊框色
-		cellEditors:       make(map[string]*widget.Editor),
-		cellClickers:      make(map[string]*widget.Clickable),
-		editingCell:       "",
-		selectedRow:       -1,                                          // 初始化為 -1 表示未選中任何行
-		selectedCol:       -1,                                          // 初始化為 -1 表示未選中任何列		selectedRowColor:  color.NRGBA{R: 240, G: 248, B: 255, A: 255}, // 淺藍色 (Alice Blue)
-		selectedColColor:  color.NRGBA{R: 240, G: 255, B: 240, A: 255}, // 淺綠色 (Honeydew)
-		selectedCellColor: color.NRGBA{R: 220, G: 237, B: 255, A: 255}, // 水藍色 (Light Blue)
+		Table:         tbl,
+		CellWidth:     unit.Dp(80),
+		CellHeight:    unit.Dp(32),
+		HeaderBgColor: color.NRGBA{R: 245, G: 246, B: 250, A: 255}, // 更柔和的標題背景色
+		BorderColor:   color.NRGBA{R: 225, G: 228, B: 232, A: 255}, // 更柔和的邊框色
+		cellEditors:   make(map[string]*widget.Editor),
+		cellClickers:  make(map[string]*widget.Clickable),
+		editingCell:   "", selectedRow: -1, // 初始化為 -1 表示未選中任何行
+		selectedCol:       -1,                                          // 初始化為 -1 表示未選中任何列
+		selectedRowColor:  color.NRGBA{R: 240, G: 230, B: 255, A: 255}, // 淡紫色 (選中行背景)
+		selectedColColor:  color.NRGBA{R: 240, G: 230, B: 255, A: 255}, // 淡紫色 (選中列背景)
+		selectedCellColor: color.NRGBA{R: 220, G: 200, B: 250, A: 255}, // 中紫色 (選中單元格)
 		showColumnInput:   false,                                       // 初始不顯示輸入條
 		showError:         false,                                       // 初始不顯示錯誤訊息
 		errorMessage:      "",                                          // 初始化錯誤訊息為空
@@ -264,14 +264,14 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 			} // 根據是否是選中的行來決定背景色
 			var bgColor color.NRGBA
 			if rowNum == dt.selectedRow {
-				// 對選中行的標題使用更深的綠色高亮 (列索引用綠色)
-				bgColor = color.NRGBA{R: 180, G: 255, B: 180, A: 255}
+				// 對選中行的標題使用更深的紫色高亮 (列索引也使用紫色系)
+				bgColor = color.NRGBA{R: 210, G: 180, B: 250, A: 255}
 			} else if text == "列/欄" {
 				// 左上角指示格使用灰色
 				bgColor = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 			} else if strings.Contains(text, ": ") {
-				// 列索引使用淡綠色背景
-				bgColor = color.NRGBA{R: 220, G: 255, B: 220, A: 255}
+				// 列索引使用淡紫色背景
+				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
 			} else {
 				// 欄名一律使用淡紫色背景
 				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
@@ -483,18 +483,16 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 				SE: 4,
 				SW: 4,
 				NW: 4,
-			}
-
-			// 用淺藍色作為編輯模式背景
-			bgColor := color.NRGBA{R: 240, G: 248, B: 255, A: 255}
+			} // 用淡紫色作為編輯模式背景
+			bgColor := color.NRGBA{R: 245, G: 240, B: 255, A: 255} // 淡紫色背景
 			paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
 
 			// 恢復原始約束條件以正確繪製內容
 			gtx.Constraints = origConstraints
 			gtx.Constraints.Max = image.Point{X: cellWidth, Y: cellHeight}
 
-			// 使用更柔和的藍色邊框
-			borderColor := color.NRGBA{R: 100, G: 149, B: 237, A: 255} // 矢車菊藍
+			// 使用更柔和的紫色邊框
+			borderColor := color.NRGBA{R: 150, G: 120, B: 200, A: 255} // 淡紫色邊框
 
 			// 畫圓角邊框 - 使用多層繪製實現邊框效果
 			outerRect := clip.RRect{
@@ -764,7 +762,10 @@ func (dt *GenericDataTable) headerCellNoBorder(gtx layout.Context, th *material.
 			}
 
 			var bgColor color.NRGBA
-			if colNum == dt.selectedCol {
+			if text == "" {
+				// 左上角空白格使用灰色背景，與「列/欄」格子保持一致
+				bgColor = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+			} else if colNum == dt.selectedCol {
 				// 對選中列的標題使用更深的紫色高亮 (欄索引一律使用紫色系)
 				bgColor = color.NRGBA{R: 210, G: 180, B: 250, A: 255}
 			} else {
