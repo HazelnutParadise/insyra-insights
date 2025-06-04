@@ -10,10 +10,12 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
+	"github.com/HazelnutParadise/insyra"
 	"github.com/HazelnutParadise/insyra-insights/internal/ui"
 )
 
 func main() {
+	insyra.Config.SetDontPanic(true)
 	go func() {
 		window := new(app.Window)
 		window.Option(
