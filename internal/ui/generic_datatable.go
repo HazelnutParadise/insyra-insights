@@ -732,7 +732,7 @@ func (dt *GenericDataTable) drawColumnHeader(gtx layout.Context, th *material.Th
 			var children []layout.FlexChild
 			// 左上角指示格 (行/欄)
 			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return dt.headerCell(gtx, th, "行/欄")
+				return dt.headerCell(gtx, th, "列/欄")
 			}))
 			for i := 0; i < cols; i++ {
 				name := dt.Table.GetColByNumber(i).GetName()
