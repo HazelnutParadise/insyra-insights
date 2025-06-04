@@ -5,6 +5,10 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/f32"
@@ -18,9 +22,51 @@ import (
 	"github.com/HazelnutParadise/insyra-insights/config"
 	"github.com/HazelnutParadise/insyra-insights/i18n"
 	"github.com/HazelnutParadise/insyra-insights/version"
+	"github.com/google/uuid"
 )
 
+var lockFilePath string
+var launchUUID string
+
+func init() {
+	// 產生 UUID 並建立對應 lock 檔
+	launchUUID = uuid.NewString()
+	lockFilePath = filepath.Join(os.TempDir(), "insyra_starting_"+launchUUID+".lock")
+	err := os.WriteFile(lockFilePath, []byte("wait"), 0644)
+	if err != nil {
+		log.Fatalf("無法建立鎖定檔案: %v", err)
+	}
+}
+
+func monitorLockFile() {
+	for {
+		time.Sleep(200 * time.Millisecond)
+		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+			os.Exit(0)
+		}
+	}
+}
+
+func ExtractEmbeddedExecutableAndRun() error {
+	uuid := launchUUID
+	fileName := "insyra-insights"
+	if runtime.GOOS == "windows" {
+		fileName += ".exe"
+	}
+	exePath := filepath.Join(os.TempDir(), fileName)
+	err := os.WriteFile(exePath, embeddedMainApp, 0755)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(exePath, "--uuid", uuid)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Start()
+}
+
 func main() {
+	go monitorLockFile()
+	go ExtractEmbeddedExecutableAndRun()
 	config.Load()
 
 	// config.Set(config.Language, "en-US")

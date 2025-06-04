@@ -35,6 +35,16 @@ type GenericDataTable struct {
 	selectedRow     int                          // 已選中格子的行索引
 	selectedCol     int                          // 已選中格子的列索引
 
+	// 欄名編輯功能
+	colNameEditors  map[int]*widget.Editor    // 欄名編輯器 (key: col索引)
+	colNameClickers map[int]*widget.Clickable // 欄名點擊器 (key: col索引)
+	editingColName  int                       // 當前正在編輯的欄名索引，-1為無
+
+	// 列名編輯功能
+	rowNameEditors  map[int]*widget.Editor    // 列名編輯器 (key: row索引)
+	rowNameClickers map[int]*widget.Clickable // 列名點擊器 (key: row索引)
+	editingRowName  int                       // 當前正在編輯的列名索引，-1為無
+
 	// 顏色設定
 	selectedRowColor  color.NRGBA // 選中行的背景色
 	selectedColColor  color.NRGBA // 選中列的背景色
@@ -62,8 +72,21 @@ func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 		HeaderBgColor: color.NRGBA{R: 245, G: 246, B: 250, A: 255}, // 更柔和的標題背景色
 		BorderColor:   color.NRGBA{R: 225, G: 228, B: 232, A: 255}, // 更柔和的邊框色
 		cellEditors:   make(map[string]*widget.Editor),
-		cellClickers:  make(map[string]*widget.Clickable), editingCell: "", selectedRow: -1, // 初始化為 -1 表示未選中任何行
-		selectedCol:       -1,                                          // 初始化為 -1 表示未選中任何列
+		cellClickers:  make(map[string]*widget.Clickable),
+		editingCell:   "",
+		selectedRow:   -1, // 初始化為 -1 表示未選中任何行
+		selectedCol:   -1, // 初始化為 -1 表示未選中任何列
+
+		// 初始化欄名編輯功能
+		colNameEditors:  make(map[int]*widget.Editor),
+		colNameClickers: make(map[int]*widget.Clickable),
+		editingColName:  -1, // -1 表示尚未編輯任何欄名
+
+		// 初始化行名編輯功能
+		rowNameEditors:  make(map[int]*widget.Editor),
+		rowNameClickers: make(map[int]*widget.Clickable),
+		editingRowName:  -1, // -1 表示尚未編輯任何行名
+
 		selectedRowColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中行背景)
 		selectedColColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中列背景)
 		selectedCellColor: color.NRGBA{R: 220, G: 200, B: 250, A: 255}, // 中紫色 (選中單元格)
@@ -208,10 +231,9 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 
 func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int, rowName string) layout.Dimensions {
 	var children []layout.FlexChild
-	// 將行索引和行名稱合併在同一格內，使用空格而非冒號
-	combinedText := fmt.Sprintf("%d: %s", row, rowName)
+	// 使用可編輯的行名儲存格，而不是合併顯示
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.headerCell(gtx, th, combinedText)
+		return dt.editableRowName(gtx, th, row, rowName)
 	}))
 	// 使用 Data() 方法獲取所有資料
 	data := dt.Table.Data()
@@ -731,8 +753,10 @@ func (dt *GenericDataTable) drawColumnHeader(gtx layout.Context, th *material.Th
 			for i := 0; i < cols; i++ {
 				name := dt.Table.GetColByNumber(i).GetName()
 				currentName := name // 捕獲迴圈變數
+				currentIndex := i   // 捕獲迴圈變數
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.headerCell(gtx, th, currentName)
+					// 使用可編輯的欄名單元格
+					return dt.editableColumnName(gtx, th, currentIndex, currentName)
 				}))
 			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)

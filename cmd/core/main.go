@@ -1,8 +1,12 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -15,18 +19,33 @@ import (
 )
 
 func main() {
+	uuid := flag.String("uuid", "", "UUID from loader")
+	flag.Parse()
+
+	if *uuid == "" {
+		fmt.Println("⚠️ 沒有收到 UUID，直接退出")
+		os.Exit(1)
+	}
 	insyra.Config.SetDontPanic(true)
+
 	go func() {
 		window := new(app.Window)
 		window.Option(
 			app.Title("Insyra Insights"),
 		)
-		err := run(window)
+		lockPath := filepath.Join(os.TempDir(), "insyra_starting_"+*uuid+".lock")
+		time.Sleep(3 * time.Second)
+		err := os.Remove(lockPath)
+		if err != nil {
+			log.Fatalf("無法刪除鎖定檔案: %v", err)
+		}
+		err = run(window)
 		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)
 	}()
+
 	app.Main()
 }
 
