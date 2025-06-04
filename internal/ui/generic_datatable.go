@@ -305,7 +305,7 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 				lbl := material.Body2(th, text)
 				lbl.Font.Weight = font.SemiBold
 				// 使用藍色文字
-				lbl.Color = color.NRGBA{R: 0, G: 90, B: 180, A: 255}
+				lbl.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 				return lbl.Layout(gtx)
 			})
 		}),
