@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -31,6 +32,13 @@ type GenericDataTable struct {
 	editingCell     string                       // 當前編輯的儲存格
 	selectedContent string                       // 已選中格子的完整內容
 	selectedCellKey string                       // 已選中格子的索引
+	selectedRow     int                          // 已選中格子的行索引
+	selectedCol     int                          // 已選中格子的列索引
+
+	// 顏色設定
+	selectedRowColor  color.NRGBA // 選中行的背景色
+	selectedColColor  color.NRGBA // 選中列的背景色
+	selectedCellColor color.NRGBA // 選中單元格的背景色
 
 	// 捲動控制
 	verticalList   widget.List
@@ -39,14 +47,19 @@ type GenericDataTable struct {
 
 func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 	return &GenericDataTable{
-		Table:         tbl,
-		CellWidth:     unit.Dp(80),
-		CellHeight:    unit.Dp(32),
-		HeaderBgColor: color.NRGBA{R: 240, G: 240, B: 240, A: 255},
-		BorderColor:   color.NRGBA{R: 180, G: 180, B: 180, A: 255},
-		cellEditors:   make(map[string]*widget.Editor),
-		cellClickers:  make(map[string]*widget.Clickable),
-		editingCell:   "",
+		Table:             tbl,
+		CellWidth:         unit.Dp(80),
+		CellHeight:        unit.Dp(32),
+		HeaderBgColor:     color.NRGBA{R: 245, G: 246, B: 250, A: 255}, // 更柔和的標題背景色
+		BorderColor:       color.NRGBA{R: 225, G: 228, B: 232, A: 255}, // 更柔和的邊框色
+		cellEditors:       make(map[string]*widget.Editor),
+		cellClickers:      make(map[string]*widget.Clickable),
+		editingCell:       "",
+		selectedRow:       -1,                                          // 初始化為 -1 表示未選中任何行
+		selectedCol:       -1,                                          // 初始化為 -1 表示未選中任何列
+		selectedRowColor:  color.NRGBA{R: 240, G: 248, B: 255, A: 255}, // 淺藍色 (Alice Blue)
+		selectedColColor:  color.NRGBA{R: 240, G: 255, B: 240, A: 255}, // 淺綠色 (Honeydew)
+		selectedCellColor: color.NRGBA{R: 220, G: 237, B: 255, A: 255}, // 水藍色 (Light Blue)
 	}
 }
 
@@ -130,37 +143,7 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 	)
 }
 
-func (dt *GenericDataTable) drawColumnIndexRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
-	var children []layout.FlexChild
-	// 只使用一個儲存格作為行標頭
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.cell(gtx, th, "")
-	}))
-	for i := range cols {
-		label := indexToLetters(i)
-		currentLabel := label // 捕獲迴圈變數
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.headerCell(gtx, th, currentLabel)
-		}))
-	}
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-}
-
-func (dt *GenericDataTable) drawColumnNameRow(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
-	var children []layout.FlexChild
-	// 只使用一個儲存格作為行標頭
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.headerCell(gtx, th, "行/欄")
-	}))
-	for i := 0; i < cols; i++ {
-		name := dt.Table.GetColByNumber(i).GetName()
-		currentName := name // 捕獲迴圈變數
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.headerCell(gtx, th, currentName)
-		}))
-	}
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-}
+// 舊的 drawColumnIndexRow 和 drawColumnNameRow 函數已被 drawColumnHeader 函數替代
 
 func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int, rowName string) layout.Dimensions {
 	var children []layout.FlexChild
@@ -204,38 +187,40 @@ func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, 
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
 }
 
-func (dt *GenericDataTable) cell(gtx layout.Context, th *material.Theme, text string) layout.Dimensions {
-	return layout.Stack{}.Layout(gtx,
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, clip.Rect{
-				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-			}.Op())
-			// 右側垂直格線
-			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
-				Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
-				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-			}.Op())
-			// 底部水平格線
-			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
-				Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
-				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-			}.Op())
-			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
-		}),
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return material.Body2(th, text).Layout(gtx)
-			})
-		}),
-	)
-}
+// 已移除未使用的 cell 函數
 
 func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, text string) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			paint.FillShape(gtx.Ops, dt.HeaderBgColor, clip.Rect{
+			// 獲取行號
+			rowNum := -1
+			if strings.Contains(text, ": ") {
+				parts := strings.Split(text, ": ")
+				if len(parts) > 0 {
+					rowNum, _ = strconv.Atoi(parts[0])
+				}
+			}
+
+			// 根據是否是選中的行來決定背景色
+			var bgColor color.NRGBA
+			if rowNum == dt.selectedRow {
+				// 對選中行的標題使用淡色高亮
+				bgColor = color.NRGBA{R: 235, G: 235, B: 255, A: 255}
+			} else {
+				bgColor = dt.HeaderBgColor
+			}
+
+			// 使用微妙的斜向陰影效果增強擬物感
+			paint.FillShape(gtx.Ops, bgColor, clip.Rect{
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
+
+			// 頂部亮色增強立體感
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 100}, clip.Rect{
+				Min: image.Pt(1, 1),
+				Max: image.Pt(gtx.Dp(dt.CellWidth)-1, 2),
+			}.Op())
+
 			// 右側垂直格線
 			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 				Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
@@ -246,11 +231,14 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 				Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
+
 			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
 		}),
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Body2(th, text)
+				lbl.Font.Weight = font.SemiBold
+				lbl.Color = color.NRGBA{R: 60, G: 64, B: 72, A: 255} // 深灰色
 				return lbl.Layout(gtx)
 			})
 		}),
@@ -289,23 +277,68 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 	}
 
 	editor := dt.cellEditors[cellKey]
-	clicker := dt.cellClickers[cellKey]
-	// 若使用者點擊儲存格，進入編輯模式
+	clicker := dt.cellClickers[cellKey] // 若使用者點擊儲存格，進入編輯模式
 	if clicker.Clicked(gtx) {
 		dt.editingCell = cellKey
 		dt.selectedCellKey = cellKey
 		dt.selectedContent = text
+		dt.selectedRow = row
+		dt.selectedCol = col
 		editor.SetText(text)
 	}
-
 	// 若不在編輯模式，呈現可點擊文字模式
 	if dt.editingCell != cellKey {
 		return clicker.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Stack{}.Layout(gtx,
-				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-					paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 255}, clip.Rect{
-						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
-					}.Op())
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions { // 根據選中狀態決定背景色
+					var bgColor color.NRGBA
+					var isSelected bool = false
+
+					// 如果是選中的儲存格
+					if row == dt.selectedRow && col == dt.selectedCol {
+						bgColor = dt.selectedCellColor
+						isSelected = true
+					} else if row == dt.selectedRow { // 如果在選中的行
+						bgColor = dt.selectedRowColor
+						isSelected = true
+					} else if col == dt.selectedCol { // 如果在選中的列
+						bgColor = dt.selectedColColor
+						isSelected = true
+					} else { // 普通儲存格
+						bgColor = color.NRGBA{255, 255, 255, 255}
+					}
+
+					// 繪製微妙圓角的矩形背景
+					roundedRect := clip.RRect{
+						Rect: image.Rectangle{
+							Max: image.Point{X: gtx.Dp(dt.CellWidth), Y: gtx.Dp(dt.CellHeight)},
+						},
+						// 所有角都有非常微小的圓角，提升美感
+						NE: 1,
+						SE: 1,
+						SW: 1,
+						NW: 1,
+					}
+					paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
+
+					// 如果是選中的儲存格，增加微妙的內陰影效果增強立體感
+					if isSelected {
+						// 左側和頂部細微陰影
+						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, 20}, clip.Rect{
+							Min: image.Pt(0, 0),
+							Max: image.Pt(1, gtx.Dp(dt.CellHeight)),
+						}.Op())
+						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, 20}, clip.Rect{
+							Min: image.Pt(0, 0),
+							Max: image.Pt(gtx.Dp(dt.CellWidth), 1),
+						}.Op())
+					} else {
+						// 非選中格子增加微妙光澤效果，頂部有細微高亮
+						paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 120}, clip.Rect{
+							Min: image.Pt(0, 0),
+							Max: image.Pt(gtx.Dp(dt.CellWidth), 2),
+						}.Op())
+					}
 					// 右側垂直格線
 					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 						Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
@@ -329,12 +362,12 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 						}
 
 						// 使用改進的 truncateText 函數截斷文字
-						displayText := truncateText(text, maxChars)
-
-						// 當被點擊時，記錄選中的儲存格內容
+						displayText := truncateText(text, maxChars) // 當被點擊時，記錄選中的儲存格內容和行列
 						if clicker.Clicked(gtx) {
 							dt.selectedCellKey = cellKey
 							dt.selectedContent = text
+							dt.selectedRow = row
+							dt.selectedCol = col
 						}
 
 						return material.Body2(th, displayText).Layout(gtx)
@@ -373,23 +406,75 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 
 	// 使用 Stack 布局
 	return layout.Stack{}.Layout(gtx,
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			// 繪製背景和邊框，但不包裹點擊器
-			paint.FillShape(gtx.Ops, color.NRGBA{240, 248, 255, 255}, clip.Rect{
-				Max: image.Pt(cellWidth, cellHeight),
-			}.Op())
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions { // 繪製稍帶圓角的光亮背景 - 編輯模式更突出
+			roundedRect := clip.RRect{
+				Rect: image.Rectangle{
+					Max: image.Point{X: cellWidth, Y: cellHeight},
+				},
+				NE: 4, // 所有角都有小圓角
+				SE: 4,
+				SW: 4,
+				NW: 4,
+			}
+
+			// 用淺藍色作為編輯模式背景
+			bgColor := color.NRGBA{R: 240, G: 248, B: 255, A: 255}
+			paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
 
 			// 恢復原始約束條件以正確繪製內容
 			gtx.Constraints = origConstraints
 			gtx.Constraints.Max = image.Point{X: cellWidth, Y: cellHeight}
 
-			borderColor := color.NRGBA{0, 123, 255, 255}
+			// 使用更柔和的藍色邊框
+			borderColor := color.NRGBA{R: 100, G: 149, B: 237, A: 255} // 矢車菊藍
 
-			// 畫四邊藍色邊框
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(cellWidth, 3)}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, cellHeight-3), Max: image.Pt(cellWidth, cellHeight)}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(3, cellHeight)}.Op())
-			paint.FillShape(gtx.Ops, borderColor, clip.Rect{Min: image.Pt(cellWidth-3, 0), Max: image.Pt(cellWidth, cellHeight)}.Op())
+			// 畫圓角邊框 - 使用多層繪製實現邊框效果
+			outerRect := clip.RRect{
+				Rect: image.Rectangle{
+					Max: image.Point{X: cellWidth, Y: cellHeight},
+				},
+				NE: 6,
+				SE: 6,
+				SW: 6,
+				NW: 6,
+			}
+			innerRect := clip.RRect{
+				Rect: image.Rectangle{
+					Min: image.Point{X: 2, Y: 2},
+					Max: image.Point{X: cellWidth - 2, Y: cellHeight - 2},
+				},
+				NE: 4,
+				SE: 4,
+				SW: 4,
+				NW: 4,
+			}
+
+			// 先畫外框
+			paint.FillShape(gtx.Ops, borderColor, outerRect.Op(gtx.Ops))
+			// 再用背景色填充內部，形成邊框效果
+			paint.FillShape(gtx.Ops, bgColor, innerRect.Op(gtx.Ops))
+
+			// 添加陰影效果增強立體感
+			for i := 0; i < 3; i++ {
+				shadowColor := color.NRGBA{R: 0, G: 0, B: 0, A: uint8(10 - i*3)}
+				shadowRect := clip.RRect{
+					Rect: image.Rectangle{
+						Min: image.Point{X: 2 + i, Y: cellHeight + i},
+						Max: image.Point{X: cellWidth + i, Y: cellHeight + i + 1},
+					},
+					NE: 0,
+					SE: 0,
+					SW: 0,
+					NW: 0,
+				}
+				paint.FillShape(gtx.Ops, shadowColor, shadowRect.Op(gtx.Ops))
+			}
+
+			// 頂部光澤效果
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 100}, clip.Rect{
+				Min: image.Pt(3, 3),
+				Max: image.Pt(cellWidth-3, 5),
+			}.Op())
 
 			return layout.Dimensions{Size: image.Point{X: cellWidth, Y: cellHeight}}
 		}),
@@ -442,13 +527,9 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 
 func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.Theme, rows, cols int) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 列索引行 (A, B, C, ...)
+		// 合併列索引行和列名稱行，無格線
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.drawColumnIndexRow(gtx, th, cols)
-		}),
-		// 列名稱行
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.drawColumnNameRow(gtx, th, cols)
+			return dt.drawColumnHeader(gtx, th, cols)
 		}),
 		// 數據行
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -461,6 +542,117 @@ func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.The
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		}),
+	)
+}
+
+// drawColumnHeader 繪製欄位標頭，包含欄索引和欄名，中間沒有分隔線
+func (dt *GenericDataTable) drawColumnHeader(gtx layout.Context, th *material.Theme, cols int) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// 欄索引行 (A, B, C, ...)
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			var children []layout.FlexChild
+			// 左上角空白格
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// 不需要底部格線
+				return dt.headerCellNoBorder(gtx, th, "", false)
+			}))
+			for i := range cols {
+				label := indexToLetters(i)
+				currentLabel := label // 捕獲迴圈變數
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					// 不需要底部格線
+					return dt.headerCellNoBorder(gtx, th, currentLabel, false)
+				}))
+			}
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+		}),
+		// 欄名稱行
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			var children []layout.FlexChild
+			// 左上角指示格 (行/欄)
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return dt.headerCell(gtx, th, "行/欄")
+			}))
+			for i := 0; i < cols; i++ {
+				name := dt.Table.GetColByNumber(i).GetName()
+				currentName := name // 捕獲迴圈變數
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return dt.headerCell(gtx, th, currentName)
+				}))
+			}
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+		}),
+	)
+}
+
+// headerCellNoBorder 繪製沒有底部邊框的標題儲存格
+func (dt *GenericDataTable) headerCellNoBorder(gtx layout.Context, th *material.Theme, text string, showBottomBorder bool) layout.Dimensions {
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			// 檢查是否是選中列的欄標題
+			colNum := -1
+			if text != "" {
+				// 將欄標題轉換為欄號，支持複合索引如 AA, AB 等
+				for i := 0; i < 100; i++ { // 設置合理的上限以避免無限循環
+					if indexToLetters(i) == text {
+						colNum = i
+						break
+					}
+				}
+			}
+
+			var bgColor color.NRGBA
+			if colNum == dt.selectedCol {
+				// 對選中列的標題使用淡色高亮
+				bgColor = color.NRGBA{R: 235, G: 255, B: 235, A: 255}
+			} else {
+				bgColor = dt.HeaderBgColor
+			}
+
+			// 繪製稍帶圓角的背景 (但僅適用於上半部分)
+			roundedRect := clip.RRect{
+				Rect: image.Rectangle{
+					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+				},
+				NE: 4, // 右上稍微圓角
+				SE: 0,
+				SW: 0,
+				NW: 4, // 左上稍微圓角
+			}
+			paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
+
+			// 繪製微妙的頂部光澤效果 - 使用淺色條紋增強立體感
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 100}, clip.Rect{
+				Min: image.Pt(1, 1),
+				Max: image.Pt(gtx.Dp(dt.CellWidth)-1, 3),
+			}.Op())
+
+			// 右側垂直格線
+			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+				Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
+				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+			}.Op())
+
+			// 只在需要時繪製底部水平格線
+			if showBottomBorder {
+				paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+					Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
+					Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+				}.Op())
+			}
+
+			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
+		}),
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Body2(th, text)
+				// 使用粗體字型
+				lbl.Font.Weight = font.Bold
+				// 讓欄標題顏色更深一些
+				lbl.Color = color.NRGBA{R: 60, G: 64, B: 72, A: 255}
+				return lbl.Layout(gtx)
+			})
 		}),
 	)
 }
