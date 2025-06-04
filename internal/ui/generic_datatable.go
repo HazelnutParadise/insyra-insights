@@ -272,8 +272,8 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 				// 列索引使用淡紫色背景
 				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
 			} else {
-				// 欄名一律使用淡紫色背景
-				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
+				// 欄名一律使用淡藍色背景
+				bgColor = color.NRGBA{R: 225, G: 235, B: 250, A: 255}
 			}
 
 			// 使用微妙的斜向陰影效果增強擬物感
@@ -304,8 +304,8 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 			return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Body2(th, text)
 				lbl.Font.Weight = font.SemiBold
-				// 使用深紫色文字，與紫色背景更加協調
-				lbl.Color = color.NRGBA{R: 80, G: 30, B: 120, A: 255}
+				// 使用藍色文字
+				lbl.Color = color.NRGBA{R: 0, G: 90, B: 180, A: 255}
 				return lbl.Layout(gtx)
 			})
 		}),
@@ -423,10 +423,7 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 						// 計算可用的字符數，中文字符寬度為2，英文為1
 						// 這裡我們根據儲存格寬度估算可顯示的字符數
 						// 調整為更保守的值以確保不會溢出
-						maxChars := int(dt.CellWidth)/10 - 1
-						if maxChars < 4 {
-							maxChars = 4 // 至少顯示幾個字符
-						}
+						maxChars := max(int(dt.CellWidth)/10-1, 4)
 
 						// 使用改進的 truncateText 函數截斷文字
 						displayText := truncateText(text, maxChars) // 當被點擊時，記錄選中的儲存格內容和行列
@@ -447,14 +444,13 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 	enteredText := editor.Text()
 	if len(enteredText) > 0 && strings.Contains(enteredText, "\n") {
 		trimmed := strings.ReplaceAll(enteredText, "\n", "")
-		dt.updateCellValue(row, col, trimmed)
-		dt.Table.Show()
-		editor.SetText(trimmed)
-
-		// 更新選中的內容
+		// 更新選中的內容(樂觀更新)
 		dt.selectedContent = trimmed
-
+		editor.SetText(trimmed)
 		dt.editingCell = ""
+		dt.updateCellValue(row, col, trimmed)
+
+		dt.Table.Show()
 	} // 編輯模式介面
 	// 先保存原始約束條件
 	origConstraints := gtx.Constraints
@@ -811,8 +807,8 @@ func (dt *GenericDataTable) headerCellNoBorder(gtx layout.Context, th *material.
 				lbl := material.Body2(th, text)
 				// 使用粗體字型
 				lbl.Font.Weight = font.Bold
-				// 使用深紫色文字，與紫色背景更加協調
-				lbl.Color = color.NRGBA{R: 80, G: 30, B: 120, A: 255}
+				// 使用藍色文字
+				lbl.Color = color.NRGBA{R: 0, G: 90, B: 180, A: 255}
 				return lbl.Layout(gtx)
 			})
 		}),
