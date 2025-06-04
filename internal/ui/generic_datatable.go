@@ -210,7 +210,7 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int, rowName string) layout.Dimensions {
 	var children []layout.FlexChild
 	// 將行索引和行名稱合併在同一格內，使用空格而非冒號
-	combinedText := fmt.Sprintf("%s %s", strconv.Itoa(row), rowName)
+	combinedText := fmt.Sprintf("%d: %s", row, rowName)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return dt.headerCell(gtx, th, combinedText)
 	}))
@@ -261,15 +261,20 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 				if len(parts) > 0 {
 					rowNum, _ = strconv.Atoi(parts[0])
 				}
-			}
-
-			// 根據是否是選中的行來決定背景色
+			} // 根據是否是選中的行來決定背景色
 			var bgColor color.NRGBA
 			if rowNum == dt.selectedRow {
-				// 對選中行的標題使用淡色高亮
-				bgColor = color.NRGBA{R: 235, G: 235, B: 255, A: 255}
+				// 對選中行的標題使用更深的綠色高亮 (列索引用綠色)
+				bgColor = color.NRGBA{R: 180, G: 255, B: 180, A: 255}
+			} else if text == "行/欄" {
+				// 左上角指示格使用灰色
+				bgColor = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+			} else if strings.Contains(text, ": ") {
+				// 列索引使用淡綠色背景
+				bgColor = color.NRGBA{R: 220, G: 255, B: 220, A: 255}
 			} else {
-				bgColor = dt.HeaderBgColor
+				// 欄名使用淡紫色背景
+				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
 			}
 
 			// 使用微妙的斜向陰影效果增強擬物感
@@ -759,10 +764,11 @@ func (dt *GenericDataTable) headerCellNoBorder(gtx layout.Context, th *material.
 
 			var bgColor color.NRGBA
 			if colNum == dt.selectedCol {
-				// 對選中列的標題使用淡色高亮
-				bgColor = color.NRGBA{R: 235, G: 255, B: 235, A: 255}
+				// 對選中列的標題使用更深的藍色高亮 (欄索引用藍色)
+				bgColor = color.NRGBA{R: 180, G: 200, B: 255, A: 255}
 			} else {
-				bgColor = dt.HeaderBgColor
+				// 使用淡藍色作為欄索引背景
+				bgColor = color.NRGBA{R: 220, G: 230, B: 255, A: 255}
 			}
 
 			// 繪製稍帶圓角的背景 (但僅適用於上半部分)
