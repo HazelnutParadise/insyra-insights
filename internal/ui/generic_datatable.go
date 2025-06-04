@@ -210,8 +210,14 @@ func (dt *GenericDataTable) cell(gtx layout.Context, th *material.Theme, text st
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, clip.Rect{
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
+			// 右側垂直格線
 			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 				Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
+				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+			}.Op())
+			// 底部水平格線
+			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+				Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
 			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
@@ -230,8 +236,14 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 			paint.FillShape(gtx.Ops, dt.HeaderBgColor, clip.Rect{
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
+			// 右側垂直格線
 			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 				Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
+				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+			}.Op())
+			// 底部水平格線
+			paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+				Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
 				Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 			}.Op())
 			return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
@@ -294,8 +306,14 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 					paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 255}, clip.Rect{
 						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 					}.Op())
+					// 右側垂直格線
 					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
 						Min: image.Pt(gtx.Dp(dt.CellWidth)-1, 0),
+						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
+					}.Op())
+					// 底部水平格線
+					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+						Min: image.Pt(0, gtx.Dp(dt.CellHeight)-1),
 						Max: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight)),
 					}.Op())
 					return layout.Dimensions{Size: image.Pt(gtx.Dp(dt.CellWidth), gtx.Dp(dt.CellHeight))}
