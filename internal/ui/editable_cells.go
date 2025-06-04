@@ -21,8 +21,6 @@ func (dt *GenericDataTable) editableColumnName(gtx layout.Context, th *material.
 	if _, exists := dt.colNameEditors[colIndex]; !exists {
 		editor := &widget.Editor{}
 		editor.SetText(colName)
-		editor.SingleLine = true
-		editor.Submit = true
 		dt.colNameEditors[colIndex] = editor
 	}
 
@@ -200,8 +198,6 @@ func (dt *GenericDataTable) editableRowName(gtx layout.Context, th *material.The
 	if _, exists := dt.rowNameEditors[rowIndex]; !exists {
 		editor := &widget.Editor{}
 		editor.SetText(rowName)
-		editor.SingleLine = true
-		editor.Submit = true
 		dt.rowNameEditors[rowIndex] = editor
 	}
 
