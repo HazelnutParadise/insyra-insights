@@ -135,10 +135,8 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 		dt.showError = false // 重設錯誤訊息狀態
 		dt.errorMessage = ""
 	}
-
-	// 設置垂直捲動
+	// 設置捲動軸
 	dt.verticalList.Axis = layout.Vertical
-	// 設置水平捲動
 	dt.horizontalList.Axis = layout.Horizontal
 
 	// 計算表格總寬度
@@ -179,7 +177,8 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						// 儲存格內容標籤
 						contentLabel := material.Body1(th, dt.selectedContent)
-						contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色						// 設置最小寬度為0，允許文本擴展
+						contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色
+						// 設置最小寬度為0，允許文本擴展
 						contentGtx := gtx
 						contentGtx.Constraints.Min.X = 0
 						return contentLabel.Layout(contentGtx)
@@ -188,19 +187,33 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 			})
 		}),
 
-		// 表格區域
+		// 表格區域 - 改進表格結構，使欄名和欄索引凍結
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			// 使用嵌套的 List 來實現雙向滾動
-			return material.List(th, &dt.verticalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-				// 內層水平滾動
-				return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-					// 設置完整的表格尺寸
-					gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+			// 外層垂直佈局：欄頭 + 資料表格
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				// 凍結的欄頭區域
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					// 水平滾動包裝欄頭，與資料區域同步
+					return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+						gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+						// 繪製欄索引和欄名
+						return dt.drawColumnHeader(gtx, th, cols)
+					})
+				}),
 
-					// 渲染完整的表格
-					return dt.layoutFullTable(gtx, th, rows, cols)
-				})
-			})
+				// 資料區域（帶有垂直捲軸）
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					// 垂直滾動僅應用於數據行
+					return material.List(th, &dt.verticalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+						// 水平滾動與欄頭區域同步
+						return material.List(th, &dt.horizontalList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+							gtx.Constraints.Max.X = gtx.Dp(unit.Dp(totalWidth))
+							// 繪製資料行（不包含欄頭）
+							return dt.layoutDataRows(gtx, th, rows, cols)
+						})
+					})
+				}),
+			)
 		}),
 	)
 }
@@ -593,6 +606,7 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 }
 
 func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.Theme, rows, cols int) layout.Dimensions {
+	// 只處理計算欄輸入區域
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// 新增計算欄按鈕區域
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -686,22 +700,6 @@ func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.The
 					})
 				})
 			}
-		}),
-		// 合併列索引行和列名稱行，無格線
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return dt.drawColumnHeader(gtx, th, cols)
-		}),
-		// 數據行
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			var children []layout.FlexChild
-			for i := 0; i < rows; i++ {
-				rowName := dt.Table.GetRowNameByIndex(i)
-				rowIndex := i // 捕獲迴圈變數
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.drawDataRow(gtx, th, rowIndex, cols, rowName)
-				}))
-			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
 	)
 }
@@ -844,4 +842,17 @@ func truncateText(text string, maxWidth int) string {
 
 	// 使用 runewidth 的 Truncate 方法，這會正確處理各種 Unicode 字符
 	return runewidth.Truncate(text, maxWidth, "…") // 使用單個省略號字符節省空間
+}
+
+// layoutDataRows 僅繪製資料行部分，用於支援固定欄頭
+func (dt *GenericDataTable) layoutDataRows(gtx layout.Context, th *material.Theme, rows, cols int) layout.Dimensions {
+	var children []layout.FlexChild
+	for i := 0; i < rows; i++ {
+		rowName := dt.Table.GetRowNameByIndex(i)
+		rowIndex := i // 捕獲迴圈變數
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return dt.drawDataRow(gtx, th, rowIndex, cols, rowName)
+		}))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
