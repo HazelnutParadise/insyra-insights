@@ -62,11 +62,10 @@ func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 		HeaderBgColor: color.NRGBA{R: 245, G: 246, B: 250, A: 255}, // 更柔和的標題背景色
 		BorderColor:   color.NRGBA{R: 225, G: 228, B: 232, A: 255}, // 更柔和的邊框色
 		cellEditors:   make(map[string]*widget.Editor),
-		cellClickers:  make(map[string]*widget.Clickable),
-		editingCell:   "", selectedRow: -1, // 初始化為 -1 表示未選中任何行
+		cellClickers:  make(map[string]*widget.Clickable), editingCell: "", selectedRow: -1, // 初始化為 -1 表示未選中任何行
 		selectedCol:       -1,                                          // 初始化為 -1 表示未選中任何列
-		selectedRowColor:  color.NRGBA{R: 240, G: 230, B: 255, A: 255}, // 淡紫色 (選中行背景)
-		selectedColColor:  color.NRGBA{R: 240, G: 230, B: 255, A: 255}, // 淡紫色 (選中列背景)
+		selectedRowColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中行背景)
+		selectedColColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中列背景)
 		selectedCellColor: color.NRGBA{R: 220, G: 200, B: 250, A: 255}, // 中紫色 (選中單元格)
 		showColumnInput:   false,                                       // 初始不顯示輸入條
 		showError:         false,                                       // 初始不顯示錯誤訊息
@@ -264,8 +263,8 @@ func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, t
 			} // 根據是否是選中的行來決定背景色
 			var bgColor color.NRGBA
 			if rowNum == dt.selectedRow {
-				// 對選中行的標題使用更深的紫色高亮 (列索引也使用紫色系)
-				bgColor = color.NRGBA{R: 210, G: 180, B: 250, A: 255}
+				// 對選中行的標題使用更深的綠色高亮
+				bgColor = color.NRGBA{R: 200, G: 240, B: 200, A: 255}
 			} else if text == "列/欄" {
 				// 左上角指示格使用灰色
 				bgColor = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
@@ -766,8 +765,8 @@ func (dt *GenericDataTable) headerCellNoBorder(gtx layout.Context, th *material.
 				// 左上角空白格使用灰色背景，與「列/欄」格子保持一致
 				bgColor = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 			} else if colNum == dt.selectedCol {
-				// 對選中列的標題使用更深的紫色高亮 (欄索引一律使用紫色系)
-				bgColor = color.NRGBA{R: 210, G: 180, B: 250, A: 255}
+				// 對選中列的標題使用更深的綠色高亮
+				bgColor = color.NRGBA{R: 200, G: 240, B: 200, A: 255}
 			} else {
 				// 使用淡紫色作為欄索引背景
 				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255}
