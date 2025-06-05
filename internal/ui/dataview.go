@@ -25,14 +25,22 @@ type DataTabInfo struct {
 // DataView 支援多標籤頁的數據視圖
 type DataView struct {
 	// 多標籤頁支援
-	tabs            []*DataTabInfo     // 標籤頁列表
-	tabButtons      []widget.Clickable // 標籤按鈕
-	addTabButton    widget.Clickable   // 新增標籤按鈕
-	currentTabIndex int                // 當前選中的標籤索引
+	tabs             []*DataTabInfo     // 標籤頁列表
+	tabButtons       []widget.Clickable // 標籤按鈕
+	addTabButton     widget.Clickable   // 新增標籤按鈕
+	currentTabIndex  int                // 當前選中的標籤索引	// 功能列按鈕
+	addColButton     widget.Clickable   // 新增欄按鈕
+	addRowButton     widget.Clickable   // 新增列按鈕
+	addCalcColButton widget.Clickable   // 新增計算欄按鈕
 
-	// 功能列按鈕
-	addColButton widget.Clickable // 新增欄按鈕
-	addRowButton widget.Clickable // 新增列按鈕
+	// 計算欄功能
+	showColumnInput     bool             // 是否顯示計算欄輸入條
+	columnFormulaEditor widget.Editor    // CCL 表達式輸入編輯器
+	columnNameEditor    widget.Editor    // 新欄位名稱輸入編輯器
+	addColumnConfirmBtn widget.Clickable // 確認添加按鈕
+	addColumnCancelBtn  widget.Clickable // 取消按鈕
+	errorMessage        string           // 錯誤訊息
+	showError           bool             // 是否顯示錯誤訊息
 
 	// 底部工具列按鈕
 	openButton     widget.Clickable // 開啟檔案
@@ -52,12 +60,22 @@ func NewDataView() *DataView {
 		DataTable: NewGenericDataTable(insyra.NewDataTable()),
 		StatsData: make(map[string]string),
 	}
-
 	view := &DataView{
 		tabs:            []*DataTabInfo{firstTab},
 		tabButtons:      make([]widget.Clickable, 1),
 		currentTabIndex: 0,
+		showColumnInput: false, // 初始不顯示輸入條
+		showError:       false, // 初始不顯示錯誤訊息
+		errorMessage:    "",    // 初始化錯誤訊息為空
 	}
+
+	// 設定公式編輯器
+	view.columnFormulaEditor.SingleLine = true
+	view.columnFormulaEditor.Submit = true
+
+	// 設定名稱編輯器
+	view.columnNameEditor.SingleLine = true
+	view.columnNameEditor.Submit = true
 
 	return view
 }
@@ -121,6 +139,17 @@ func (v *DataView) handleFunctionButtons(gtx layout.Context) {
 	if v.addRowButton.Clicked(gtx) {
 		v.addRow()
 	}
+	if v.addCalcColButton.Clicked(gtx) {
+		v.showColumnInput = true
+	}
+
+	// 處理計算欄按鈕
+	if v.addColumnConfirmBtn.Clicked(gtx) {
+		v.addCalculatedColumn()
+	}
+	if v.addColumnCancelBtn.Clicked(gtx) {
+		v.cancelColumnInput()
+	}
 }
 
 // layoutTabBar 繪製標籤列
@@ -160,20 +189,39 @@ func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.D
 
 // layoutFunctionBar 繪製功能列
 func (v *DataView) layoutFunctionBar(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// 按鈕行
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.addColButton, "新增欄")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, &v.addColButton, "新增欄")
+					// 使用與表格計算欄按鈕相同的藍色樣式
+					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
+					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, &v.addRowButton, "新增列")
+					// 使用與表格計算欄按鈕相同的藍色樣式
+					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
+					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, &v.addCalcColButton, "新增計算欄")
+					// 使用與表格計算欄按鈕相同的藍色樣式
+					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
+					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+				}),
+			)
 		}),
+		// 計算欄輸入區域
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.addRowButton, "新增列")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+			if !v.showColumnInput {
+				return layout.Dimensions{}
+			}
+			return v.layoutColumnInput(gtx, th)
 		}),
 	)
 }
@@ -375,7 +423,6 @@ func (v *DataView) addRow() {
 
 	// 將新行添加到 DataTable
 	currentTab.DataTable.Table.AppendRowsFromDataList(rowDL)
-
 	// 重新計算統計數據
 	v.computeStatistics(currentTab)
 }
@@ -389,7 +436,7 @@ func (v *DataView) computeStatistics(tab *DataTabInfo) {
 	insyraTable := tab.DataTable.Table
 	rowCount, colCount := insyraTable.Size()
 
-	// 清空統計數據
+	// 創建有序的統計數據 map（使用固定順序確保顯示一致性）
 	tab.StatsData = make(map[string]string)
 
 	if rowCount == 0 || colCount == 0 {
@@ -398,9 +445,33 @@ func (v *DataView) computeStatistics(tab *DataTabInfo) {
 		return
 	}
 
-	// 基本統計
+	// 基本統計（按固定順序）
 	tab.StatsData["總行數"] = strconv.Itoa(rowCount)
 	tab.StatsData["總欄數"] = strconv.Itoa(colCount)
+	// 計算數值欄位的額外統計
+	var numericCols int
+	for i := 0; i < colCount; i++ {
+		colData := insyraTable.GetColByNumber(i)
+		if colData != nil {
+			// 檢查是否為數值欄位
+			hasNumeric := false
+			for j := 0; j < colData.Len() && j < 10; j++ { // 檢查前10個值
+				if val := colData.Get(j); val != nil {
+					if _, err := strconv.ParseFloat(fmt.Sprint(val), 64); err == nil {
+						hasNumeric = true
+						break
+					}
+				}
+			}
+			if hasNumeric {
+				numericCols++
+			}
+		}
+	}
+
+	if numericCols > 0 {
+		tab.StatsData["數值欄數"] = strconv.Itoa(numericCols)
+	}
 }
 
 // LoadSampleData 載入樣本數據到當前標籤頁
@@ -470,4 +541,138 @@ func (v *DataView) Update(e interface{}) {
 // Event 實現事件處理
 func (v *DataView) Event(e interface{}) {
 	// 事件處理將在 Layout 中完成
+}
+
+// layoutColumnInput 繪製計算欄輸入區域
+func (v *DataView) layoutColumnInput(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// 主要輸入行
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{
+				Top: unit.Dp(4), Bottom: unit.Dp(4),
+				Left: unit.Dp(8), Right: unit.Dp(8),
+			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{
+					Axis:      layout.Horizontal,
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					// fx 標籤
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						fxLabel := material.Body2(th, "fx")
+						fxLabel.Color = color.NRGBA{R: 90, G: 90, B: 90, A: 255}
+						return fxLabel.Layout(gtx)
+					}),
+
+					// 名稱輸入框
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Max.X = gtx.Dp(100)
+							editor := material.Editor(th, &v.columnNameEditor, "名稱")
+							editor.TextSize = unit.Sp(14)
+							return editor.Layout(gtx)
+						})
+					}),
+
+					// 等號
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						equalLabel := material.Body1(th, "=")
+						return equalLabel.Layout(gtx)
+					}),
+
+					// CCL 表達式輸入框
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Left: unit.Dp(4), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							editor := material.Editor(th, &v.columnFormulaEditor, "CCL 表達式")
+							editor.TextSize = unit.Sp(14)
+							return editor.Layout(gtx)
+						})
+					}),
+
+					// 確認按鈕
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						btn := material.Button(th, &v.addColumnConfirmBtn, "✓")
+						btn.Background = color.NRGBA{R: 0, G: 150, B: 0, A: 255}
+						btn.TextSize = unit.Sp(12)
+						return btn.Layout(gtx)
+					}),
+
+					// 取消按鈕
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							btn := material.Button(th, &v.addColumnCancelBtn, "✕")
+							btn.Background = color.NRGBA{R: 150, G: 0, B: 0, A: 255}
+							btn.TextSize = unit.Sp(12)
+							return btn.Layout(gtx)
+						})
+					}),
+				)
+			})
+		}),
+		// 錯誤訊息
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !v.showError || v.errorMessage == "" {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{
+				Top: unit.Dp(2), Left: unit.Dp(8),
+			}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				errorLabel := material.Caption(th, v.errorMessage)
+				errorLabel.Color = color.NRGBA{R: 200, G: 30, B: 30, A: 255}
+				return errorLabel.Layout(gtx)
+			})
+		}),
+	)
+}
+
+// addCalculatedColumn 添加計算欄
+func (v *DataView) addCalculatedColumn() {
+	if len(v.tabs) == 0 {
+		return
+	}
+
+	currentTab := v.tabs[v.currentTabIndex]
+	if currentTab.DataTable == nil || currentTab.DataTable.Table == nil {
+		return
+	}
+
+	// 獲取輸入的 CCL 表達式和欄位名稱
+	formula := v.columnFormulaEditor.Text()
+	colName := v.columnNameEditor.Text()
+
+	// 如果輸入有效，添加新的計算欄
+	if formula != "" && colName != "" {
+		// 使用 AddColUsingCCL 方法添加計算欄
+		currentTab.DataTable.Table.AddColUsingCCL(colName, formula)
+
+		// 檢查是否有錯誤發生
+		_, errMsg := insyra.PopError(insyra.ErrPoppingModeFIFO)
+		if errMsg != "" {
+			// 如果有錯誤，顯示錯誤訊息但不關閉輸入面板
+			v.errorMessage = "計算欄錯誤: " + errMsg
+			v.showError = true
+		} else {
+			// 如果沒有錯誤，更新表格顯示並清空輸入
+			currentTab.DataTable.Table.Show()
+			v.columnFormulaEditor.SetText("")
+			v.columnNameEditor.SetText("")
+			v.showColumnInput = false
+			v.showError = false
+
+			// 重新計算統計數據
+			v.computeStatistics(currentTab)
+		}
+	} else {
+		v.errorMessage = "請輸入欄位名稱與 CCL 表達式"
+		v.showError = true
+	}
+}
+
+// cancelColumnInput 取消計算欄輸入
+func (v *DataView) cancelColumnInput() {
+	// 清空輸入並隱藏輸入面板
+	v.columnFormulaEditor.SetText("")
+	v.columnNameEditor.SetText("")
+	v.showColumnInput = false
+	v.showError = false // 重設錯誤訊息狀態
+	v.errorMessage = ""
 }
