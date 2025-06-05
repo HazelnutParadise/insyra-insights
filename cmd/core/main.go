@@ -11,13 +11,10 @@ import (
 	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/HazelnutParadise/insyra"
 	"github.com/HazelnutParadise/insyra-insights/internal/ui"
 )
-
-var globalWindow *app.Window
 
 func main() {
 	uuid := flag.String("uuid", "", "UUID from loader")
@@ -51,7 +48,6 @@ func main() {
 }
 
 func run(window *app.Window) error {
-	globalWindow = window
 	ui.GlobalWindow = window
 	theme := material.NewTheme()
 	var ops op.Ops
@@ -72,15 +68,8 @@ func run(window *app.Window) error {
 	viewController.RegisterView("about", ui.NewAboutView())
 	viewController.RegisterView("settings", ui.NewSettingsView())
 	viewController.RegisterView("data", dataView)
-
 	// 設置初始視圖
 	viewController.SwitchView("welcome")
-	// 創建切換按鈕
-	var welcomeButton widget.Clickable
-	var aboutButton widget.Clickable
-	var settingsButton widget.Clickable
-	var dataButton widget.Clickable
-
 	for {
 		switch e := window.Event().(type) {
 		case app.DestroyEvent:
@@ -88,46 +77,14 @@ func run(window *app.Window) error {
 		case app.FrameEvent:
 			// 創建圖形上下文
 			gtx := app.NewContext(&ops, e)
-			// 處理按鈕點擊
-			if welcomeButton.Clicked(gtx) {
-				viewController.SwitchView("welcome")
-			}
-			if aboutButton.Clicked(gtx) {
-				viewController.SwitchView("about")
-			}
-			if settingsButton.Clicked(gtx) {
-				viewController.SwitchView("settings")
-			}
-			if dataButton.Clicked(gtx) {
-				viewController.SwitchView("data")
-			}
 
-			// 佈局界面
+			// 佈局界面 - 移除底部導覽按鈕，只顯示視圖區域
 			layout.Flex{
 				Axis: layout.Vertical,
 			}.Layout(gtx,
-				// 視圖區域
-				layout.Flexed(0.9, func(gtx layout.Context) layout.Dimensions {
+				// 視圖區域佔滿整個空間
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return viewController.Layout(gtx)
-				}),
-				// 按鈕區域
-				layout.Flexed(0.1, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Axis: layout.Horizontal,
-					}.Layout(gtx,
-						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
-							return material.Button(theme, &welcomeButton, "歡迎").Layout(gtx)
-						}),
-						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
-							return material.Button(theme, &aboutButton, "關於").Layout(gtx)
-						}),
-						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
-							return material.Button(theme, &settingsButton, "設定").Layout(gtx)
-						}),
-						layout.Flexed(0.2, func(gtx layout.Context) layout.Dimensions {
-							return material.Button(theme, &dataButton, "資料").Layout(gtx)
-						}),
-					)
 				}),
 			)
 			// 更新視圖控制器中的當前視圖
