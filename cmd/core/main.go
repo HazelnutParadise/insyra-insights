@@ -13,10 +13,11 @@ import (
 	"gioui.org/op"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-
 	"github.com/HazelnutParadise/insyra"
 	"github.com/HazelnutParadise/insyra-insights/internal/ui"
 )
+
+var globalWindow *app.Window
 
 func main() {
 	uuid := flag.String("uuid", "", "UUID from loader")
@@ -50,6 +51,8 @@ func main() {
 }
 
 func run(window *app.Window) error {
+	globalWindow = window
+	ui.GlobalWindow = window
 	theme := material.NewTheme()
 	var ops op.Ops
 	// 創建視圖控制器

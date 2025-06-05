@@ -40,11 +40,6 @@ type GenericDataTable struct {
 	colNameClickers map[int]*widget.Clickable // 欄名點擊器 (key: col索引)
 	editingColName  int                       // 當前正在編輯的欄名索引，-1為無
 
-	// 列名編輯功能
-	rowNameEditors  map[int]*widget.Editor    // 列名編輯器 (key: row索引)
-	rowNameClickers map[int]*widget.Clickable // 列名點擊器 (key: row索引)
-	editingRowName  int                       // 當前正在編輯的列名索引，-1為無
-
 	// 顏色設定
 	selectedRowColor  color.NRGBA // 選中行的背景色
 	selectedColColor  color.NRGBA // 選中列的背景色
@@ -81,11 +76,6 @@ func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 		colNameEditors:  make(map[int]*widget.Editor),
 		colNameClickers: make(map[int]*widget.Clickable),
 		editingColName:  -1, // -1 表示尚未編輯任何欄名
-
-		// 初始化行名編輯功能
-		rowNameEditors:  make(map[int]*widget.Editor),
-		rowNameClickers: make(map[int]*widget.Clickable),
-		editingRowName:  -1, // -1 表示尚未編輯任何行名
 
 		selectedRowColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中行背景)
 		selectedColColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中列背景)
@@ -231,13 +221,43 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 
 func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int) layout.Dimensions {
 	var children []layout.FlexChild
-	// 使用可編輯的行名儲存格，而不是合併顯示
+	// row index cell: 對齊資料格、選中行變色
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.editableRowName(gtx, th, row)
+		cellWidth := gtx.Dp(dt.CellWidth)
+		cellHeight := gtx.Dp(dt.CellHeight)
+		var bgColor color.NRGBA
+		if row == dt.selectedRow {
+			bgColor = color.NRGBA{R: 200, G: 240, B: 200, A: 255} // 選中行高亮
+		} else {
+			bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255} // 普通行
+		}
+		return layout.Stack{}.Layout(gtx,
+			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+				paint.FillShape(gtx.Ops, bgColor, clip.Rect{
+					Max: image.Pt(cellWidth, cellHeight),
+				}.Op())
+				// 右側格線
+				paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+					Min: image.Pt(cellWidth-1, 0),
+					Max: image.Pt(cellWidth, cellHeight),
+				}.Op())
+				// 底部格線
+				paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
+					Min: image.Pt(0, cellHeight-1),
+					Max: image.Pt(cellWidth, cellHeight),
+				}.Op())
+				return layout.Dimensions{Size: image.Pt(cellWidth, cellHeight)}
+			}),
+			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+				indexLbl := material.Body2(th, fmt.Sprintf("%d", row+1))
+				indexLbl.Font.Weight = font.SemiBold
+				indexLbl.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
+				return layout.UniformInset(unit.Dp(4)).Layout(gtx, indexLbl.Layout)
+			}),
+		)
 	}))
 	// 使用 Data() 方法獲取所有資料
 	data := dt.Table.Data()
-
 	for i := range cols {
 		var text string
 
@@ -864,4 +884,12 @@ func truncateText(text string, maxWidth int) string {
 
 	// 使用 runewidth 的 Truncate 方法，這會正確處理各種 Unicode 字符
 	return runewidth.Truncate(text, maxWidth, "…") // 使用單個省略號字符節省空間
+}
+
+// ResetEditors 清空所有 editor/clicker pool，避免 pool 汙染
+func (dt *GenericDataTable) ResetEditors() {
+	dt.cellEditors = make(map[string]*widget.Editor)
+	dt.colNameEditors = make(map[int]*widget.Editor)
+	dt.cellClickers = make(map[string]*widget.Clickable)
+	dt.colNameClickers = make(map[int]*widget.Clickable)
 }

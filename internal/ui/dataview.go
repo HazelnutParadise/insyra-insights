@@ -100,6 +100,7 @@ func (v *DataView) LoadSampleData() {
 func (v *DataView) loadSampleData() {
 	// 創建新的 DataTable
 	v.dataTable.Table = insyra.NewDataTable()
+	v.dataTable.ResetEditors() // <--- pool reset
 
 	// 創建列數據
 	idCol := insyra.NewDataList("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10").SetName("ID")
@@ -538,6 +539,7 @@ func (v *DataView) GetDataTable() *GenericDataTable {
 func (v *DataView) AddDataFromInsyraTable(table *insyra.DataTable) {
 	// 假設 GenericDataTable 有 SetInsyraTable 方法或類似功能
 	v.dataTable.Table = table
+	v.dataTable.ResetEditors() // <--- pool reset
 
 	// 重新計算統計數據
 	v.computeStatistics()
