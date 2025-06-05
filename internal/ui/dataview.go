@@ -102,7 +102,7 @@ func (v *DataView) loadSampleData() {
 	v.dataTable.Table = insyra.NewDataTable()
 
 	// 創建列數據
-	idCol := insyra.NewDataList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).SetName("ID")
+	idCol := insyra.NewDataList("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10").SetName("ID")
 	nameCol := insyra.NewDataList("張小明", "李美玲", "王大偉", "陳小華", "林志明", "黃雅琪", "吳建宏", "趙小惠", "劉大為", "鄭美華").SetName("姓名")
 	ageCol := insyra.NewDataList("28", "32", "45", "24", "36", "29", "41", "27", "52", "38").SetName("年齡")
 	cityCol := insyra.NewDataList("台北", "台中", "高雄", "新竹", "台北", "台南", "高雄", "台中", "台北", "新北").SetName("城市")

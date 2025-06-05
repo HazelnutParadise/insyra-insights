@@ -229,11 +229,11 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 
 // 舊的 drawColumnIndexRow 和 drawColumnNameRow 函數已被 drawColumnHeader 函數替代
 
-func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int, rowName string) layout.Dimensions {
+func (dt *GenericDataTable) drawDataRow(gtx layout.Context, th *material.Theme, row, cols int) layout.Dimensions {
 	var children []layout.FlexChild
 	// 使用可編輯的行名儲存格，而不是合併顯示
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return dt.editableRowName(gtx, th, row, rowName)
+		return dt.editableRowName(gtx, th, row)
 	}))
 	// 使用 Data() 方法獲取所有資料
 	data := dt.Table.Data()
@@ -711,10 +711,9 @@ func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.The
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			var children []layout.FlexChild
 			for i := 0; i < rows; i++ {
-				rowName := dt.Table.GetRowNameByIndex(i)
 				rowIndex := i // 捕獲迴圈變數
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.drawDataRow(gtx, th, rowIndex, cols, rowName)
+					return dt.drawDataRow(gtx, th, rowIndex, cols)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

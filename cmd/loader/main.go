@@ -49,7 +49,7 @@ func monitorLockFile() {
 
 func ExtractEmbeddedExecutableAndRun() error {
 	uuid := launchUUID
-	fileName := "insyra-insights"
+	fileName := "insyra-insights" + uuid
 	if runtime.GOOS == "windows" {
 		fileName += ".exe"
 	}
