@@ -378,12 +378,12 @@ func (v *DataView) addColumn() {
 
 	// 為新欄位填入預設值
 	for i := 0; i < rowCount; i++ {
-		newCol.Append("")
+		newCol.Append(nil)
 	}
 
 	// 如果沒有行數，至少添加一個預設值
 	if rowCount == 0 {
-		newCol.Append("")
+		newCol.Append(nil)
 	}
 
 	currentTab.DataTable.Table.AppendCols(newCol)
@@ -409,7 +409,7 @@ func (v *DataView) addRow() {
 	// 如果沒有欄位，先創建一個預設欄位
 	if colCount == 0 {
 		defaultCol := insyra.NewDataList().SetName("var1")
-		defaultCol.Append("")
+		defaultCol.Append(nil)
 		currentTab.DataTable.Table.AppendCols(defaultCol)
 		v.computeStatistics(currentTab)
 		return
@@ -418,7 +418,7 @@ func (v *DataView) addRow() {
 	var rowDL = insyra.NewDataList()
 	// 為每個現有欄位新增一個值
 	for i := 0; i < colCount; i++ {
-		rowDL.Append("")
+		rowDL.Append(nil)
 	}
 
 	// 將新行添加到 DataTable

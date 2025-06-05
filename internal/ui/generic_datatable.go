@@ -39,20 +39,10 @@ type GenericDataTable struct {
 	colNameEditors  map[int]*widget.Editor    // 欄名編輯器 (key: col索引)
 	colNameClickers map[int]*widget.Clickable // 欄名點擊器 (key: col索引)
 	editingColName  int                       // 當前正在編輯的欄名索引，-1為無
-
 	// 顏色設定
 	selectedRowColor  color.NRGBA // 選中行的背景色
 	selectedColColor  color.NRGBA // 選中列的背景色
 	selectedCellColor color.NRGBA // 選中單元格的背景色
-	// 計算欄功能
-	addColumnButton     widget.Clickable // 新增計算欄的按鈕	addColumnButton      widget.Clickable // 新增計算欄的按鈕
-	showColumnInput     bool             // 是否顯示輸入條
-	columnFormulaEditor widget.Editor    // CCL 表達式輸入編輯器
-	columnNameEditor    widget.Editor    // 新欄位名稱輸入編輯器
-	addColumnConfirmBtn widget.Clickable // 確認添加按鈕
-	addColumnCancelBtn  widget.Clickable // 取消按鈕
-	errorMessage        string           // 錯誤訊息
-	showError           bool             // 是否顯示錯誤訊息
 
 	// 捲動控制
 	verticalList   widget.List
@@ -73,25 +63,13 @@ func NewGenericDataTable(tbl *insyra.DataTable) *GenericDataTable {
 		selectedCol:   -1, // 初始化為 -1 表示未選中任何列
 
 		// 初始化欄名編輯功能
-		colNameEditors:  make(map[int]*widget.Editor),
-		colNameClickers: make(map[int]*widget.Clickable),
-		editingColName:  -1, // -1 表示尚未編輯任何欄名
-
+		colNameEditors:    make(map[int]*widget.Editor),
+		colNameClickers:   make(map[int]*widget.Clickable),
+		editingColName:    -1,                                          // -1 表示尚未編輯任何欄名
 		selectedRowColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中行背景)
 		selectedColColor:  color.NRGBA{R: 235, G: 250, B: 235, A: 255}, // 淡綠色 (選中列背景)
 		selectedCellColor: color.NRGBA{R: 220, G: 200, B: 250, A: 255}, // 中紫色 (選中單元格)
-		showColumnInput:   false,                                       // 初始不顯示輸入條
-		showError:         false,                                       // 初始不顯示錯誤訊息
-		errorMessage:      "",                                          // 初始化錯誤訊息為空
 	}
-	// 設定公式編輯器
-	dt.columnFormulaEditor.SingleLine = true
-	dt.columnFormulaEditor.Submit = true
-	// 編輯器沒有 SetHint 方法，我們將在繪製時使用 material.Editor 的 Hint 功能
-
-	// 設定名稱編輯器
-	dt.columnNameEditor.SingleLine = true
-	dt.columnNameEditor.Submit = true
 
 	return dt
 }
@@ -101,51 +79,9 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 		return layout.Dimensions{}
 	}
 	rows, cols := dt.Table.Size()
-
 	// 安全檢查：如果表格為空，返回空佈局
 	if rows == 0 || cols == 0 {
 		return layout.Dimensions{}
-	}
-
-	// 處理按鈕點擊事件
-	if dt.addColumnButton.Clicked(gtx) {
-		dt.showColumnInput = true
-	}
-	if dt.addColumnConfirmBtn.Clicked(gtx) {
-		// 獲取輸入的 CCL 表達式和欄位名稱
-		formula := dt.columnFormulaEditor.Text()
-		colName := dt.columnNameEditor.Text()
-		// 如果輸入有效，添加新的計算欄
-		if formula != "" && colName != "" {
-			if dt.Table != nil {
-				// 使用 AddColUsingCCL 方法添加計算欄
-				dt.Table.AddColUsingCCL(colName, formula) // 檢查是否有錯誤發生
-				_, errMsg := insyra.PopError(insyra.ErrPoppingModeFIFO)
-				if errMsg != "" {
-					// 如果有錯誤，顯示錯誤訊息但不關閉輸入面板
-					dt.errorMessage = "計算欄錯誤: " + errMsg
-					dt.showError = true
-				} else {
-					// 如果沒有錯誤，更新表格顯示並清空輸入
-					dt.Table.Show()
-					dt.columnFormulaEditor.SetText("")
-					dt.columnNameEditor.SetText("")
-					dt.showColumnInput = false
-					dt.showError = false
-				}
-			}
-		} else {
-			dt.errorMessage = "請輸入欄位名稱與 CCL 表達式"
-			dt.showError = true
-		}
-	}
-	if dt.addColumnCancelBtn.Clicked(gtx) {
-		// 清空輸入並隱藏輸入面板
-		dt.columnFormulaEditor.SetText("")
-		dt.columnNameEditor.SetText("")
-		dt.showColumnInput = false
-		dt.showError = false // 重設錯誤訊息狀態
-		dt.errorMessage = ""
 	}
 
 	// 設置垂直捲動
@@ -630,99 +566,6 @@ func (dt *GenericDataTable) updateCellValue(row, col int, newValue string) {
 
 func (dt *GenericDataTable) layoutFullTable(gtx layout.Context, th *material.Theme, rows, cols int) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 新增計算欄按鈕區域
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if dt.showColumnInput {
-				// 簡潔的 Excel 風格單行公式欄
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					// 主要輸入行
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return layout.Inset{
-							Top: unit.Dp(4), Bottom: unit.Dp(4),
-							Left: unit.Dp(8), Right: unit.Dp(8),
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{
-								Axis:      layout.Horizontal,
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								// fx 標籤
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									fxLabel := material.Body2(th, "fx")
-									fxLabel.Color = color.NRGBA{R: 90, G: 90, B: 90, A: 255}
-									return fxLabel.Layout(gtx)
-								}),
-
-								// 名稱輸入框
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										gtx.Constraints.Max.X = gtx.Dp(100)
-										editor := material.Editor(th, &dt.columnNameEditor, "名稱")
-										editor.TextSize = unit.Sp(14)
-										return editor.Layout(gtx)
-									})
-								}),
-
-								// 等號
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									equalLabel := material.Body1(th, "=")
-									return equalLabel.Layout(gtx)
-								}),
-
-								// CCL 表達式輸入框
-								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{Left: unit.Dp(4), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										editor := material.Editor(th, &dt.columnFormulaEditor, "CCL 表達式")
-										editor.TextSize = unit.Sp(14)
-										return editor.Layout(gtx)
-									})
-								}),
-
-								// 確認按鈕
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									btn := material.Button(th, &dt.addColumnConfirmBtn, "✓")
-									btn.Background = color.NRGBA{R: 0, G: 150, B: 0, A: 255}
-									btn.TextSize = unit.Sp(12)
-									return btn.Layout(gtx)
-								}),
-
-								// 取消按鈕
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										btn := material.Button(th, &dt.addColumnCancelBtn, "✕")
-										btn.Background = color.NRGBA{R: 150, G: 0, B: 0, A: 255}
-										btn.TextSize = unit.Sp(12)
-										return btn.Layout(gtx)
-									})
-								}),
-							)
-						})
-					}),
-					// 錯誤訊息
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if !dt.showError || dt.errorMessage == "" {
-							return layout.Dimensions{}
-						}
-						return layout.Inset{
-							Top: unit.Dp(2), Left: unit.Dp(8),
-						}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							errorLabel := material.Caption(th, dt.errorMessage)
-							errorLabel.Color = color.NRGBA{R: 200, G: 30, B: 30, A: 255}
-							return errorLabel.Layout(gtx)
-						})
-					}),
-				)
-			} else {
-				// 顯示添加按鈕
-				return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						btn := material.Button(th, &dt.addColumnButton, "+ 新增計算欄")
-						btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色
-						btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-						return btn.Layout(gtx)
-					})
-				})
-			}
-		}),
 		// 合併列索引行和列名稱行，無格線
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return dt.drawColumnHeader(gtx, th, cols)

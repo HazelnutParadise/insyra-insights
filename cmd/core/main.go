@@ -35,7 +35,7 @@ func main() {
 			app.Title("Insyra Insights"),
 		)
 		lockPath := filepath.Join(os.TempDir(), "insyra_starting_"+*uuid+".lock")
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 		err := os.Remove(lockPath)
 		if err != nil {
 			log.Fatalf("無法刪除鎖定檔案: %v", err)
