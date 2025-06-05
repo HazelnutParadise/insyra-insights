@@ -31,6 +31,9 @@ func (vc *ViewController) RegisterView(name string, view View) {
 	if welcomeView, ok := view.(*WelcomeView); ok {
 		welcomeView.viewController = vc
 	}
+	if dataView, ok := view.(*DataView); ok {
+		dataView.SetViewController(vc)
+	}
 }
 
 // SwitchView 切換到指定的視圖
@@ -44,6 +47,9 @@ func (vc *ViewController) SwitchView(name string) bool {
 	// 嘗試設置 viewController 參考
 	if welcomeView, ok := view.(*WelcomeView); ok {
 		welcomeView.viewController = vc
+	}
+	if dataView, ok := view.(*DataView); ok {
+		dataView.SetViewController(vc)
 	}
 
 	return true
