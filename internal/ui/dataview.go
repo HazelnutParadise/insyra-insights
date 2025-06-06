@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log" // Re-added import
 	"strconv"
 
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-
-	"github.com/HazelnutParadise/Go-Utils/conv"
 	"github.com/HazelnutParadise/insyra"
 )
 
@@ -155,17 +155,17 @@ func (v *DataView) handleFunctionButtons(gtx layout.Context) {
 	}
 }
 
-// layoutTabBar 繪製標籤列
+// layoutTabBar 繪製標籤列，並支援自動換行
 func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	children := make([]layout.FlexChild, len(v.tabs)+1)
+	// 1. 定義小工具佈局函式
+	widgetLayoutFuncs := make([]func(gtx layout.Context) layout.Dimensions, 0, len(v.tabs)+1)
 
-	// 現有標籤
-	for i, tab := range v.tabs {
-		idx := i
-		children[i] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// 如果是當前選中的標籤，改變樣式
-			btn := material.Button(th, &v.tabButtons[idx], tab.Name)
-			if idx == v.currentTabIndex {
+	for i, tabInfo := range v.tabs {
+		capturedIndex := i
+		capturedTabInfo := tabInfo
+		widgetLayoutFuncs = append(widgetLayoutFuncs, func(gtx layout.Context) layout.Dimensions {
+			btn := material.Button(th, &v.tabButtons[capturedIndex], capturedTabInfo.Name)
+			if capturedIndex == v.currentTabIndex {
 				// 選中標籤使用與表格選中列相同的淡綠色背景
 				btn.Background = color.NRGBA{R: 235, G: 250, B: 235, A: 255} // 淡綠色
 				btn.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}            // 黑色文字
@@ -179,7 +179,7 @@ func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.D
 	}
 
 	// 新增標籤按鈕
-	children[len(v.tabs)] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	widgetLayoutFuncs = append(widgetLayoutFuncs, func(gtx layout.Context) layout.Dimensions {
 		btn := material.Button(th, &v.addTabButton, "+")
 		// 新增按鈕使用與計算欄按鈕相同的藍色樣式
 		btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
@@ -187,7 +187,91 @@ func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.D
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
 	})
 
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+	// 2. 實作換行邏輯
+	var linesFlexChildren []layout.FlexChild // 儲存每一行 (本身是一個 FlexChild)
+
+	currentLineWidgets := []func(gtx layout.Context) layout.Dimensions{}
+	currentLineWidthPixels := 0
+	maxLineWidthPixels := gtx.Constraints.Max.X
+	itemSpacingDp := unit.Dp(4)                // 按鈕間的間距 (可調整)
+	itemSpacingPixels := gtx.Dp(itemSpacingDp) // Convert Dp to pixels for calculations
+	lineSpacing := unit.Dp(4)                  // 行間距 (可調整)
+
+	for _, widgetFunc := range widgetLayoutFuncs {
+		// 測量 widgetFunc 的寬度
+		macro := op.Record(gtx.Ops)
+		mgtx := gtx
+		mgtx.Constraints.Min = image.Point{} // 允許小工具自行決定最小尺寸
+		// Max.X 保持 gtx.Constraints.Max.X，以便小工具知道可用空間，但它應該回報其偏好寬度
+		widgetDims := widgetFunc(mgtx)
+		_ = macro.Stop() // 停止錄製，我們只關心尺寸
+
+		widgetWidthPixels := widgetDims.Size.X
+
+		// 檢查是否需要換行
+		// 如果目前行非空，且加入此小工具 (包含間距) 會超出最大寬度
+		if len(currentLineWidgets) > 0 && currentLineWidthPixels+itemSpacingPixels+widgetWidthPixels > maxLineWidthPixels {
+			// 目前行已滿，將其作為一個 FlexChild 加入到 linesFlexChildren
+			// 複製 currentLineWidgets 以避免閉包問題
+			lineToLayout := make([]func(gtx layout.Context) layout.Dimensions, len(currentLineWidgets))
+			copy(lineToLayout, currentLineWidgets)
+
+			linesFlexChildren = append(linesFlexChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				rowChildren := []layout.FlexChild{}
+				for i, f := range lineToLayout {
+					f := f     // 捕獲
+					if i > 0 { // 在項目之間加入間距
+						rowChildren = append(rowChildren, layout.Rigid(layout.Spacer{Width: itemSpacingDp}.Layout))
+					}
+					rowChildren = append(rowChildren, layout.Rigid(f))
+				}
+				// 使用 Flex 佈局目前行的所有小工具
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx, rowChildren...)
+			}))
+
+			// 開始新的一行
+			currentLineWidgets = []func(gtx layout.Context) layout.Dimensions{}
+			currentLineWidthPixels = 0
+		}
+
+		// 將目前小工具加入到目前行
+		if len(currentLineWidgets) > 0 {
+			currentLineWidthPixels += itemSpacingPixels // 加上項目間距
+		}
+		currentLineWidgets = append(currentLineWidgets, widgetFunc)
+		currentLineWidthPixels += widgetWidthPixels
+	}
+
+	// 加入最後一行 (如果有的話)
+	if len(currentLineWidgets) > 0 {
+		lineToLayout := make([]func(gtx layout.Context) layout.Dimensions, len(currentLineWidgets))
+		copy(lineToLayout, currentLineWidgets)
+
+		linesFlexChildren = append(linesFlexChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			rowChildren := []layout.FlexChild{}
+			for i, f := range lineToLayout {
+				f := f     // 捕獲
+				if i > 0 { // 在項目之間加入間距
+					rowChildren = append(rowChildren, layout.Rigid(layout.Spacer{Width: itemSpacingDp}.Layout))
+				}
+				rowChildren = append(rowChildren, layout.Rigid(f))
+			}
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx, rowChildren...)
+		}))
+	}
+
+	// 3. 使用垂直 Flex 佈局所有行
+	if len(linesFlexChildren) > 1 { // 如果有多行，才加入行間距
+		spacedLines := make([]layout.FlexChild, 0, len(linesFlexChildren)*2-1)
+		for i, lineChild := range linesFlexChildren {
+			spacedLines = append(spacedLines, lineChild)
+			if i < len(linesFlexChildren)-1 {
+				spacedLines = append(spacedLines, layout.Rigid(layout.Spacer{Height: lineSpacing}.Layout))
+			}
+		}
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Start}.Layout(gtx, spacedLines...)
+	}
+	return layout.Flex{Axis: layout.Vertical, Alignment: layout.Start}.Layout(gtx, linesFlexChildren...)
 }
 
 // layoutFunctionBar 繪製功能列
@@ -452,33 +536,31 @@ func (v *DataView) addColumn() {
 	if len(v.tabs) == 0 {
 		return
 	}
-
-	currentTab := v.tabs[v.currentTabIndex]
-	if currentTab.DataTable == nil || currentTab.DataTable.Table == nil {
+	tab := v.tabs[v.currentTabIndex]
+	if tab.DataTable == nil || tab.DataTable.Table == nil {
+		log.Println("addColumn: DataTable or Table is nil")
 		return
 	}
 
-	// 獲取目前欄位數量和行數
-	rowCount, colCount := currentTab.DataTable.Table.Size()
+	_, colCount := tab.DataTable.Table.Size()
+	columnName := "var" + strconv.Itoa(colCount+1)
 
-	// 新增一個欄位
-	columnName := "var" + conv.ToString(colCount+1)
-	newCol := insyra.NewDataList().SetName(columnName)
-
-	// 為新欄位填入預設值
-	for i := 0; i < rowCount; i++ {
-		newCol.Append(nil)
-	}
-
-	// 如果沒有行數，至少添加一個預設值
+	// 獲取當前表格的行數，以確定新欄位的長度
+	rowCount, _ := tab.DataTable.Table.Size()
+	newColumn := make([]interface{}, rowCount)
+	// 如果沒有行數，至少添加一個預設值，以便欄位存在
 	if rowCount == 0 {
-		newCol.Append(nil)
+		newColumn = append(newColumn, nil)
 	}
 
-	currentTab.DataTable.Table.AppendCols(newCol)
+	dl := insyra.NewDataList().SetName(columnName)
+	for _, item := range newColumn {
+		dl.Append(item) // Use Append to add items
+	}
+	tab.DataTable.Table.AppendCols(dl)
 
 	// 重新計算統計數據
-	v.computeStatistics(currentTab)
+	v.computeStatistics(tab)
 }
 
 // addRow 新增列到當前標籤頁
