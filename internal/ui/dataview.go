@@ -2,11 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"strconv"
 
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -189,39 +192,72 @@ func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.D
 
 // layoutFunctionBar 繪製功能列
 func (v *DataView) layoutFunctionBar(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 按鈕行
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+	// 使用堆疊佈局，增加功能列背景色和陰影效果
+	return layout.Stack{}.Layout(gtx,
+		// 背景與陰影層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			size := gtx.Constraints.Max
+			// 使用藍紫色調背景，提升現代感
+			bgColor := color.NRGBA{R: 63, G: 81, B: 181, A: 255} // Material Design 的 Indigo 500
+			paint.FillShape(gtx.Ops, bgColor, clip.Rect{
+				Max: image.Pt(size.X, gtx.Dp(unit.Dp(52))),
+			}.Op())
+
+			// 底部陰影效果
+			shadowHeight := 6
+			for i := 0; i < shadowHeight; i++ {
+				y := gtx.Dp(unit.Dp(52)) + i
+				alpha := uint8(40 - i*7)
+				if alpha < 3 {
+					alpha = 3
+				}
+
+				paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
+					Min: image.Pt(0, y),
+					Max: image.Pt(size.X, y+1),
+				}.Op())
+			}
+
+			return layout.Dimensions{Size: image.Pt(size.X, gtx.Dp(unit.Dp(52)))}
+		}),
+
+		// 內容層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				// 按鈕行
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					btn := material.Button(th, &v.addColButton, "新增欄")
-					// 使用與表格計算欄按鈕相同的藍色樣式
-					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							btn := material.Button(th, &v.addColButton, "新增欄")
+							// 更改按鈕顏色以搭配新背景
+							btn.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 40} // 半透明白色背景
+							btn.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}     // 白色文字
+							return layout.UniformInset(unit.Dp(8)).Layout(gtx, btn.Layout)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							btn := material.Button(th, &v.addRowButton, "新增列")
+							// 更改按鈕顏色以搭配新背景
+							btn.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 40} // 半透明白色背景
+							btn.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}     // 白色文字
+							return layout.UniformInset(unit.Dp(8)).Layout(gtx, btn.Layout)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							btn := material.Button(th, &v.addCalcColButton, "新增計算欄")
+							// 更改按鈕顏色以搭配新背景
+							btn.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 40} // 半透明白色背景
+							btn.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}     // 白色文字
+							return layout.UniformInset(unit.Dp(8)).Layout(gtx, btn.Layout)
+						}),
+					)
 				}),
+				// 計算欄輸入區域
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					btn := material.Button(th, &v.addRowButton, "新增列")
-					// 使用與表格計算欄按鈕相同的藍色樣式
-					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					btn := material.Button(th, &v.addCalcColButton, "新增計算欄")
-					// 使用與表格計算欄按鈕相同的藍色樣式
-					btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-					btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-					return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+					if !v.showColumnInput {
+						return layout.Dimensions{}
+					}
+					return v.layoutColumnInput(gtx, th)
 				}),
 			)
-		}),
-		// 計算欄輸入區域
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if !v.showColumnInput {
-				return layout.Dimensions{}
-			}
-			return v.layoutColumnInput(gtx, th)
 		}),
 	)
 }

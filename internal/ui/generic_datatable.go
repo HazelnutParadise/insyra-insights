@@ -88,7 +88,7 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 	// 設置水平捲動
 	dt.horizontalList.Axis = layout.Horizontal
 
-	// 使用垂直 Flex 佈局來組合選中內容顯示區域、表格區域和按鈕區域
+	// 使用垂直 Flex 佈局來組合選中內容顯示區域、表格區域（移除了按鈕區域）
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// 1. 選中內容區域顯示（頂部）
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -172,15 +172,9 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 			)
 		}),
 
-		// 2. 表格區域（中間）- 完全獨立且使用固定高度佔比
-		layout.Flexed(0.9, func(gtx layout.Context) layout.Dimensions {
+		// 2. 表格區域 - 現在占滿剩餘空間（刪除了底部按鈕區域）
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return dt.layoutFrozenTable(gtx, th, rows, cols)
-		}),
-
-		// 3. 按鈕操作區域（底部）- 完全獨立的區域
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// 在這裡實現按鈕區域的布局
-			return dt.drawButtonArea(gtx, th)
 		}),
 	)
 }
