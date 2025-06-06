@@ -636,12 +636,11 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Max.X = frozenWidth
 					return dt.drawFixedCorner(gtx, th) // 固定左上角
-				}),
-				// 右上：欄標題區域 (可水平捲動)
+				}), // 右上：欄標題區域 (可水平捲動)
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					// 使用水平捲動列表
-					hList := material.List(th, &dt.horizontalList)
-					return hList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					// 使用水平捲動原生列表
+					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+					return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 						// 繪製欄標題 (不包含左上角)
 						return dt.drawColumnHeader(gtx, th, cols)
 					})
@@ -653,22 +652,20 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				// 左側：行索引區域 (可垂直捲動)
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					gtx.Constraints.Max.X = frozenWidth
-					// 使用垂直捲動列表
-					vList := material.List(th, &dt.verticalList)
-					return vList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					gtx.Constraints.Max.X = frozenWidth // 使用垂直捲動原生列表
+					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+					return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 						// 繪製行索引
 						return dt.drawRowHeaders(gtx, th, rows)
 					})
 				}),
 				// 右下：資料區域 (可雙向捲動)
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					// 使用垂直捲動列表
-					vList := material.List(th, &dt.verticalList)
-					return vList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-						// 在垂直捲動列表內使用水平捲動列表
-						hList := material.List(th, &dt.horizontalList)
-						return hList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // 使用垂直捲動原生列表
+					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+					return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+						// 在垂直捲動列表內使用水平捲動原生列表
+						gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+						return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 							return dt.drawScrollableDataCells(gtx, th, rows, cols)
 						})
 					})
