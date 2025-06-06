@@ -205,7 +205,7 @@ func (v *DataView) layoutFunctionBar(gtx layout.Context, th *material.Theme) lay
 
 			// 底部陰影效果
 			shadowHeight := 6
-			for i := 0; i < shadowHeight; i++ {
+			for i := range shadowHeight {
 				y := gtx.Dp(unit.Dp(52)) + i
 				alpha := uint8(40 - i*7)
 				if alpha < 3 {
@@ -304,16 +304,28 @@ func (v *DataView) layoutTableArea(gtx layout.Context, th *material.Theme, tab *
 
 // layoutInfoArea 繪製資訊區域
 func (v *DataView) layoutInfoArea(gtx layout.Context, th *material.Theme, tab *DataTabInfo) layout.Dimensions {
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			title := material.H6(th, "資訊區")
-			title.Font.Weight = font.Bold
-			// 使用與表格標題相同的藍色文字
-			title.Color = color.NRGBA{R: 0, G: 90, B: 180, A: 255} // 藍色
-			return layout.UniformInset(unit.Dp(8)).Layout(gtx, title.Layout)
+	// 設定資訊區背景顏色
+	bgColor := color.NRGBA{R: 245, G: 248, B: 255, A: 255} // 淡藍灰色
+	return layout.Stack{}.Layout(gtx,
+		// 背景層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			size := gtx.Constraints.Max
+			paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: size}.Op())
+			return layout.Dimensions{Size: size}
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return v.layoutStats(gtx, th, tab)
+		// 內容層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					title := material.H6(th, "資訊區")
+					title.Font.Weight = font.Bold
+					title.Color = color.NRGBA{R: 0, G: 90, B: 180, A: 255} // 藍色
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, title.Layout)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return v.layoutStats(gtx, th, tab)
+				}),
+			)
 		}),
 	)
 }
@@ -331,6 +343,7 @@ func (v *DataView) layoutStats(gtx layout.Context, th *material.Theme, tab *Data
 	}
 
 	// 顯示統計數據
+	// todo: 改用struct切片，維持順序
 	for key, value := range tab.StatsData {
 		key, value := key, value // 捕獲循環變數
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -364,34 +377,72 @@ func (v *DataView) layoutStatItem(gtx layout.Context, th *material.Theme, label,
 
 // layoutBottomToolbar 繪製底部工具列
 func (v *DataView) layoutBottomToolbar(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.openButton, "開啟")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+	// 使用清爽的淺色背景，營造年輕感
+	bgColor := color.NRGBA{R: 180, G: 220, B: 255, A: 255} // 更藍的淺藍紫色背景
+	height := gtx.Dp(unit.Dp(52))
+	return layout.Stack{}.Layout(gtx,
+		// 背景層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			size := gtx.Constraints.Constrain(image.Pt(gtx.Constraints.Max.X, height))
+			// 主背景
+			paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: size}.Op())
+
+			// 頂部分隔線
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 220, G: 225, B: 230, A: 255}, clip.Rect{
+				Max: image.Pt(size.X, 1),
+			}.Op())
+
+			return layout.Dimensions{Size: size}
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.saveButton, "存檔")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.exportButton, "匯出")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.settingsButton, "設定")
-			// 使用與表格計算欄按鈕相同的藍色樣式
-			btn.Background = color.NRGBA{R: 225, G: 245, B: 254, A: 255} // 淡藍色背景
-			btn.Color = color.NRGBA{R: 33, G: 150, B: 243, A: 255}       // 藍色文字
-			return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+		// 按鈕層
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			btns := []*widget.Clickable{&v.openButton, &v.saveButton, &v.exportButton, &v.settingsButton}
+			labels := []string{"開啟", "存檔", "匯出", "設定"}
+			// 不同按鈕使用不同淡色背景
+			backgroundColors := []color.NRGBA{
+				{R: 240, G: 253, B: 244, A: 255}, // 開啟 - 淡綠色背景
+				{R: 239, G: 246, B: 255, A: 255}, // 存檔 - 淡藍色背景
+				{R: 255, G: 251, B: 235, A: 255}, // 匯出 - 淡橙色背景
+				{R: 249, G: 250, B: 251, A: 255}, // 設定 - 淡灰色背景
+			}
+			// 文字顏色
+			textColors := []color.NRGBA{
+				{R: 34, G: 197, B: 94, A: 255},   // 開啟 - 綠色文字
+				{R: 59, G: 130, B: 246, A: 255},  // 存檔 - 藍色文字
+				{R: 245, G: 158, B: 11, A: 255},  // 匯出 - 橙色文字
+				{R: 107, G: 114, B: 128, A: 255}, // 設定 - 灰色文字
+			}
+
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, btns[0], labels[0])
+					btn.Background = backgroundColors[0] // 淡綠色背景
+					btn.Color = textColors[0]            // 綠色文字
+					btn.CornerRadius = unit.Dp(0)
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, btn.Layout)
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, btns[1], labels[1])
+					btn.Background = backgroundColors[1] // 淡藍色背景
+					btn.Color = textColors[1]            // 藍色文字
+					btn.CornerRadius = unit.Dp(0)
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, btn.Layout)
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, btns[2], labels[2])
+					btn.Background = backgroundColors[2] // 淡橙色背景
+					btn.Color = textColors[2]            // 橙色文字
+					btn.CornerRadius = unit.Dp(0)
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, btn.Layout)
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					btn := material.Button(th, btns[3], labels[3])
+					btn.Background = backgroundColors[3] // 淡灰色背景
+					btn.Color = textColors[3]            // 灰色文字
+					btn.CornerRadius = unit.Dp(0)
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, btn.Layout)
+				}),
+			)
 		}),
 	)
 }
