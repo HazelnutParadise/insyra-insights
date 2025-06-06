@@ -631,7 +631,7 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 		// 上半部分：標題區域
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max.Y = headerHeight
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				// 左上角：固定的行/欄標題
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Max.X = frozenWidth
@@ -646,18 +646,49 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 					})
 				}),
 			)
+
+			// 在欄位標題底部繪製陰影
+			shadowHeight := 5 // 陰影高度
+			for i := 0; i < shadowHeight; i++ {
+				y := dims.Size.Y
+				alpha := uint8(50 - i*10)
+				if alpha < 5 {
+					alpha = 5
+				}
+				paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
+					Min: image.Pt(0, y),
+					Max: image.Pt(dims.Size.X, y+1),
+				}.Op())
+			}
+
+			return dims
 		}),
 		// 下半部分：主要內容區域
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				// 左側：行索引區域 (可垂直捲動)
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, // 左側：行索引區域 (可垂直捲動)
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Max.X = frozenWidth // 使用垂直捲動原生列表
 					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
-					return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					dims := dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 						// 繪製行索引
 						return dt.drawRowHeaders(gtx, th, rows)
 					})
+
+					// 在行索引右側繪製陰影
+					shadowWidth := 5 // 陰影寬度
+					for i := 0; i < shadowWidth; i++ {
+						x := dims.Size.X - 1 + i
+						alpha := uint8(50 - i*10)
+						if alpha < 5 {
+							alpha = 5
+						}
+						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
+							Min: image.Pt(x, 0),
+							Max: image.Pt(x+1, dims.Size.Y),
+						}.Op())
+					}
+
+					return dims
 				}),
 				// 右下：資料區域 (可雙向捲動)
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // 使用垂直捲動原生列表
