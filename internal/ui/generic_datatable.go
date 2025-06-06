@@ -1,4 +1,4 @@
-// GenericDataTable 是一個可繪製 Insyra DataTable 的 UI 表格組件，支援雙向捲動
+﻿// GenericDataTable 是一個可繪製 Insyra DataTable 的 UI 表格組件，支援雙向捲動
 package ui
 
 import (
@@ -88,9 +88,9 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 	// 設置水平捲動
 	dt.horizontalList.Axis = layout.Horizontal
 
-	// 使用垂直 Flex 佈局來組合選中內容顯示和表格
+	// 使用垂直 Flex 佈局來組合選中內容顯示區域、表格區域和按鈕區域
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 選中內容區域顯示
+		// 1. 選中內容區域顯示（頂部）
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if dt.selectedContent == "" {
 				return layout.Dimensions{}
@@ -108,33 +108,79 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 				}
 			}
 
-			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				// 使用水平佈局分開顯示位置和內容
-				return layout.Flex{
-					Axis:      layout.Horizontal,
-					Alignment: layout.Start,
-				}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						// 儲存格位置標籤
-						infoLabel := material.Body1(th, cellInfo)
-						infoLabel.Color = color.NRGBA{0, 0, 128, 255} // 藍色
-						return infoLabel.Layout(gtx)
-					}),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						// 儲存格內容標籤
-						contentLabel := material.Body1(th, dt.selectedContent)
-						contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色						// 設置最小寬度為0，允許文本擴展
-						contentGtx := gtx
-						contentGtx.Constraints.Min.X = 0
-						return contentLabel.Layout(contentGtx)
-					}),
-				)
-			})
+			// 為選中內容區域添加微妙的卡片陰影效果
+			return layout.Stack{}.Layout(gtx,
+				// 背景與陰影
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					size := gtx.Constraints.Max
+
+					// 繪製卡片背景
+					roundedRect := clip.RRect{
+						Rect: image.Rectangle{
+							Max: image.Point{X: size.X, Y: gtx.Dp(unit.Dp(40))},
+						},
+						NE: 4, SE: 4, SW: 4, NW: 4,
+					}
+					// 使用淡色背景
+					bgColor := color.NRGBA{R: 250, G: 250, B: 255, A: 255}
+					paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
+
+					// 底部陰影效果
+					shadowHeight := 4
+					for i := 0; i < shadowHeight; i++ {
+						y := gtx.Dp(unit.Dp(40)) + i
+						alpha := uint8(30 - i*7)
+						if alpha < 5 {
+							alpha = 5
+						}
+
+						// 繪製陰影線
+						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
+							Min: image.Pt(2, y),
+							Max: image.Pt(size.X-2, y+1),
+						}.Op())
+					}
+
+					return layout.Dimensions{Size: size}
+				}),
+				// 內容
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						// 使用水平佈局分開顯示位置和內容
+						return layout.Flex{
+							Axis:      layout.Horizontal,
+							Alignment: layout.Start,
+						}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								// 儲存格位置標籤
+								infoLabel := material.Body1(th, cellInfo)
+								infoLabel.Color = color.NRGBA{0, 0, 128, 255} // 藍色
+								return infoLabel.Layout(gtx)
+							}),
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								// 儲存格內容標籤
+								contentLabel := material.Body1(th, dt.selectedContent)
+								contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色
+								// 設置最小寬度為0，允許文本擴展
+								contentGtx := gtx
+								contentGtx.Constraints.Min.X = 0
+								return contentLabel.Layout(contentGtx)
+							}),
+						)
+					})
+				}),
+			)
 		}),
 
-		// 表格區域 - 使用凍結布局
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+		// 2. 表格區域（中間）- 完全獨立且使用固定高度佔比
+		layout.Flexed(0.9, func(gtx layout.Context) layout.Dimensions {
 			return dt.layoutFrozenTable(gtx, th, rows, cols)
+		}),
+
+		// 3. 按鈕操作區域（底部）- 完全獨立的區域
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			// 在這裡實現按鈕區域的布局
+			return dt.drawButtonArea(gtx, th)
 		}),
 	)
 }
@@ -864,3 +910,7 @@ func (dt *GenericDataTable) drawRowHeaders(gtx layout.Context, th *material.Them
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
+
+// 注意：editableColumnName 方法已移至 editable_cells.go 檔案
+
+// 注意：drawButtonArea 方法已移至 button_area.go 檔案
