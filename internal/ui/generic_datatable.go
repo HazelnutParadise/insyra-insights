@@ -627,81 +627,134 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 	// 標題區域高度 (column index + column name)
 	headerHeight := gtx.Dp(dt.CellHeight * 2)
 
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 上半部分：標題區域
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints.Max.Y = headerHeight
-			dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				// 左上角：固定的行/欄標題
+	// 使用 Stack 布局，讓陰影可以覆蓋在表格內容上方
+	return layout.Stack{}.Layout(gtx,
+		// 主體表格部分（底層）
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				// 上半部分：標題區域
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					gtx.Constraints.Max.X = frozenWidth
-					return dt.drawFixedCorner(gtx, th) // 固定左上角
-				}), // 右上：欄標題區域 (可水平捲動)
+					gtx.Constraints.Max.Y = headerHeight
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						// 左上角：固定的行/欄標題
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Max.X = frozenWidth
+							return dt.drawFixedCorner(gtx, th) // 固定左上角
+						}),
+						// 右上：欄標題區域 (可水平捲動)
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							// 使用水平捲動原生列表
+							gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+							return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+								// 繪製欄標題 (不包含左上角)
+								return dt.drawColumnHeader(gtx, th, cols)
+							})
+						}),
+					)
+				}),
+				// 下半部分：主要內容區域
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					// 使用水平捲動原生列表
-					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
-					return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-						// 繪製欄標題 (不包含左上角)
-						return dt.drawColumnHeader(gtx, th, cols)
-					})
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						// 左側：行索引區域 (可垂直捲動)
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Max.X = frozenWidth
+							// 使用垂直捲動原生列表
+							gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+							return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+								// 繪製行索引
+								return dt.drawRowHeaders(gtx, th, rows)
+							})
+						}),
+						// 右下：資料區域 (可雙向捲動)
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							// 使用垂直捲動原生列表
+							gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+							return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+								// 在垂直捲動列表內使用水平捲動原生列表
+								gtx.Constraints = layout.Exact(gtx.Constraints.Max)
+								return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+									return dt.drawScrollableDataCells(gtx, th, rows, cols)
+								})
+							})
+						}),
+					)
 				}),
 			)
+		}),
+		// 陰影效果層（上層）- 繪製在表格內容上方
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			// 先獲取整體尺寸
+			size := gtx.Constraints.Max
 
-			// 在欄位標題底部繪製陰影
-			shadowHeight := 5 // 陰影高度
+			// 1. 繪製欄標題底部陰影 (在標題區域下方)
+			shadowHeight := 12
 			for i := 0; i < shadowHeight; i++ {
-				y := dims.Size.Y
-				alpha := uint8(50 - i*10)
-				if alpha < 5 {
-					alpha = 5
+				y := headerHeight + i
+
+				// 使用指數衰減創建更真實的陰影效果
+				var alpha uint8
+				if i < 3 {
+					alpha = uint8(80 - i*15) // 接近處較強
+				} else if i < 7 {
+					alpha = uint8(40 - (i-3)*7) // 中間漸隱
+				} else {
+					alpha = uint8(15 - (i-7)*2) // 遠處極淡
 				}
+
+				if alpha < 3 {
+					alpha = 3
+				}
+
+				// 陰影線橫跨整個寬度
 				paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
 					Min: image.Pt(0, y),
-					Max: image.Pt(dims.Size.X, y+1),
+					Max: image.Pt(size.X, y+1),
 				}.Op())
 			}
 
-			return dims
-		}),
-		// 下半部分：主要內容區域
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, // 左側：行索引區域 (可垂直捲動)
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					gtx.Constraints.Max.X = frozenWidth // 使用垂直捲動原生列表
-					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
-					dims := dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-						// 繪製行索引
-						return dt.drawRowHeaders(gtx, th, rows)
-					})
+			// 2. 繪製行索引右側陰影
+			shadowWidth := 12
+			for i := 0; i < shadowWidth; i++ {
+				x := frozenWidth - 1 + i
 
-					// 在行索引右側繪製陰影
-					shadowWidth := 5 // 陰影寬度
-					for i := 0; i < shadowWidth; i++ {
-						x := dims.Size.X - 1 + i
-						alpha := uint8(50 - i*10)
-						if alpha < 5 {
-							alpha = 5
-						}
-						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
-							Min: image.Pt(x, 0),
-							Max: image.Pt(x+1, dims.Size.Y),
-						}.Op())
+				// 避開表格頂部的標題區域，只在數據區域顯示右側陰影
+				// 使用指數衰減和多級透明度實現更真實的陰影效果
+				for y := headerHeight; y < size.Y; y++ {
+					var alpha uint8
+					if i < 3 {
+						alpha = uint8(80 - i*15) // 接近處較強
+					} else if i < 7 {
+						alpha = uint8(40 - (i-3)*7) // 中間漸隱
+					} else {
+						alpha = uint8(15 - (i-7)*2) // 遠處極淡
 					}
 
-					return dims
-				}),
-				// 右下：資料區域 (可雙向捲動)
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // 使用垂直捲動原生列表
-					gtx.Constraints = layout.Exact(gtx.Constraints.Max)
-					return dt.verticalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-						// 在垂直捲動列表內使用水平捲動原生列表
-						gtx.Constraints = layout.Exact(gtx.Constraints.Max)
-						return dt.horizontalList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
-							return dt.drawScrollableDataCells(gtx, th, rows, cols)
-						})
-					})
-				}),
-			)
+					if alpha < 3 {
+						alpha = 3
+					}
+
+					paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
+						Min: image.Pt(x, y),
+						Max: image.Pt(x+1, y+1),
+					}.Op())
+				}
+			}
+
+			// 微妙光澤效果
+			// 1. 欄標題底部光澤
+			paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 30}, clip.Rect{
+				Min: image.Pt(0, headerHeight-2),
+				Max: image.Pt(size.X, headerHeight-1),
+			}.Op())
+
+			// 2. 行索引右側光澤
+			paint.FillShape(gtx.Ops, color.NRGBA{255, 255, 255, 30}, clip.Rect{
+				Min: image.Pt(frozenWidth-2, headerHeight),
+				Max: image.Pt(frozenWidth-1, size.Y),
+			}.Op())
+
+			// 返回整體尺寸
+			return layout.Dimensions{Size: size}
 		}),
 	)
 }
