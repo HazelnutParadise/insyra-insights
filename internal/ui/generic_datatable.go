@@ -10,7 +10,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -139,8 +138,6 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 		}),
 	)
 }
-
-// 已移除未使用的方法 drawColumnIndexRow, drawColumnNameRow, drawDataRow
 
 func (dt *GenericDataTable) headerCell(gtx layout.Context, th *material.Theme, text string) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,
@@ -679,89 +676,6 @@ func (dt *GenericDataTable) layoutFrozenTable(gtx layout.Context, th *material.T
 			)
 		}),
 	)
-}
-
-// drawScrollableColumnHeadersWithOffset 繪製與指定偏移量同步的欄標題
-func (dt *GenericDataTable) drawScrollableColumnHeadersWithOffset(gtx layout.Context, th *material.Theme, cols int, offset int) layout.Dimensions {
-	// 應用水平偏移量到整個標題區域，而不是跳過欄位
-	defer op.Offset(image.Pt(-offset, 0)).Push(gtx.Ops).Pop()
-
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 欄索引行
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			var children []layout.FlexChild
-			for i := 0; i < cols; i++ {
-				label := indexToLetters(i)
-				currentLabel := label
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.headerCellNoBorder(gtx, th, currentLabel, false)
-				}))
-			}
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-		}),
-		// 欄名稱行
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			var children []layout.FlexChild
-			for i := 0; i < cols; i++ {
-				name := dt.Table.GetColByNumber(i).GetName()
-				currentName := name
-				currentIndex := i
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return dt.editableColumnName(gtx, th, currentIndex, currentName)
-				}))
-			}
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-		}),
-	)
-}
-
-// drawScrollableRowHeadersWithOffset 繪製與指定偏移量同步的行索引
-func (dt *GenericDataTable) drawScrollableRowHeadersWithOffset(gtx layout.Context, th *material.Theme, rows int, offset int) layout.Dimensions {
-	// 應用垂直偏移量到整個行索引區域，而不是跳過行
-	defer op.Offset(image.Pt(0, -offset)).Push(gtx.Ops).Pop()
-
-	var children []layout.FlexChild
-	for i := 0; i < rows; i++ {
-		rowIndex := i
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			cellWidth := gtx.Dp(dt.CellWidth)
-			cellHeight := gtx.Dp(dt.CellHeight)
-			var bgColor color.NRGBA
-			if rowIndex == dt.selectedRow {
-				bgColor = color.NRGBA{R: 200, G: 240, B: 200, A: 255} // 選中行高亮
-			} else {
-				bgColor = color.NRGBA{R: 230, G: 220, B: 255, A: 255} // 普通行
-			}
-
-			return layout.Stack{}.Layout(gtx,
-				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-					paint.FillShape(gtx.Ops, bgColor, clip.Rect{
-						Max: image.Pt(cellWidth, cellHeight),
-					}.Op())
-					// 右側格線
-					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
-						Min: image.Pt(cellWidth-1, 0),
-						Max: image.Pt(cellWidth, cellHeight),
-					}.Op())
-					// 底部格線
-					paint.FillShape(gtx.Ops, dt.BorderColor, clip.Rect{
-						Min: image.Pt(0, cellHeight-1),
-						Max: image.Pt(cellWidth, cellHeight),
-					}.Op())
-					return layout.Dimensions{Size: image.Pt(cellWidth, cellHeight)}
-				}),
-				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						indexLbl := material.Body2(th, fmt.Sprintf("%d", rowIndex+1))
-						indexLbl.Font.Weight = font.SemiBold
-						indexLbl.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
-						return indexLbl.Layout(gtx)
-					})
-				}),
-			)
-		}))
-	}
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
 // drawScrollableDataCells 繪製可雙向捲動的資料格
