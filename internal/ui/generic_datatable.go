@@ -83,96 +83,38 @@ func (dt *GenericDataTable) Layout(gtx layout.Context, th *material.Theme) layou
 	if rows == 0 || cols == 0 {
 		return layout.Dimensions{}
 	}
-	// 設置垂直捲動
+	// 設置捲動
 	dt.verticalList.Axis = layout.Vertical
-	// 設置水平捲動
 	dt.horizontalList.Axis = layout.Horizontal
 
-	// 使用垂直 Flex 佈局來組合選中內容顯示區域、表格區域（移除了按鈕區域）
+	// 使用 Flex 垂直佈局：固定選中訊息高度，並持續顯示，再顯示表格
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// 1. 選中內容區域顯示（頂部）
+		// 選中訊息區域 (固定高度 40dp)
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if dt.selectedContent == "" {
-				return layout.Dimensions{}
-			}
-
-			// 顯示選中儲存格的信息
-			var cellInfo string
+			height := gtx.Dp(unit.Dp(40))
+			// 設置高度
+			gtx.Constraints.Min.Y = height
+			gtx.Constraints.Max.Y = height
+			// 繪製背景
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 250, G: 250, B: 255, A: 255}, clip.Rect{Max: image.Pt(gtx.Constraints.Max.X, height)}.Op())
+			// 顯示內容
+			info := ""
 			if dt.selectedCellKey != "" {
 				parts := strings.Split(dt.selectedCellKey, ":")
 				if len(parts) == 2 {
 					row, _ := strconv.Atoi(parts[0])
 					col, _ := strconv.Atoi(parts[1])
-					colLetter := indexToLetters(col)
-					cellInfo = fmt.Sprintf("已選中 %s%d: ", colLetter, row+1) // 加1讓行號從1開始計數，更直觀
+					info = fmt.Sprintf("已選中 %s%d: %s", indexToLetters(col), row+1, dt.selectedContent)
 				}
 			}
-
-			// 為選中內容區域添加微妙的卡片陰影效果
-			return layout.Stack{}.Layout(gtx,
-				// 背景與陰影
-				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-					size := gtx.Constraints.Max
-
-					// 繪製卡片背景
-					roundedRect := clip.RRect{
-						Rect: image.Rectangle{
-							Max: image.Point{X: size.X, Y: gtx.Dp(unit.Dp(40))},
-						},
-						NE: 4, SE: 4, SW: 4, NW: 4,
-					}
-					// 使用淡色背景
-					bgColor := color.NRGBA{R: 250, G: 250, B: 255, A: 255}
-					paint.FillShape(gtx.Ops, bgColor, roundedRect.Op(gtx.Ops))
-
-					// 底部陰影效果
-					shadowHeight := 4
-					for i := 0; i < shadowHeight; i++ {
-						y := gtx.Dp(unit.Dp(40)) + i
-						alpha := uint8(30 - i*7)
-						if alpha < 5 {
-							alpha = 5
-						}
-
-						// 繪製陰影線
-						paint.FillShape(gtx.Ops, color.NRGBA{0, 0, 0, alpha}, clip.Rect{
-							Min: image.Pt(2, y),
-							Max: image.Pt(size.X-2, y+1),
-						}.Op())
-					}
-
-					return layout.Dimensions{Size: size}
-				}),
-				// 內容
-				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						// 使用水平佈局分開顯示位置和內容
-						return layout.Flex{
-							Axis:      layout.Horizontal,
-							Alignment: layout.Start,
-						}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								// 儲存格位置標籤
-								infoLabel := material.Body1(th, cellInfo)
-								infoLabel.Color = color.NRGBA{0, 0, 128, 255} // 藍色
-								return infoLabel.Layout(gtx)
-							}),
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								// 儲存格內容標籤
-								contentLabel := material.Body1(th, dt.selectedContent)
-								contentLabel.Color = color.NRGBA{0, 0, 0, 255} // 黑色
-								// 設置最小寬度為0，允許文本擴展
-								contentGtx := gtx
-								contentGtx.Constraints.Min.X = 0
-								return contentLabel.Layout(contentGtx)
-							}),
-						)
-					})
-				}),
-			)
+			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Body1(th, info)
+				lbl.Color = color.NRGBA{R: 0, G: 0, B: 128, A: 255}
+				gtx.Constraints.Min.X = 0
+				return lbl.Layout(gtx)
+			})
 		}),
-
-		// 2. 表格區域 - 現在占滿剩餘空間（刪除了底部按鈕區域）
+		// 表格區域
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return dt.layoutFrozenTable(gtx, th, rows, cols)
 		}),

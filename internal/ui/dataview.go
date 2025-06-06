@@ -273,7 +273,9 @@ func (v *DataView) layoutMainContent(gtx layout.Context, th *material.Theme) lay
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		// 左側：表格區域
 		layout.Flexed(3, func(gtx layout.Context) layout.Dimensions {
-			return v.layoutTableArea(gtx, th, currentTab)
+			return layout.NW.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return v.layoutTableArea(gtx, th, currentTab)
+			})
 		}),
 		// 右側：資訊區域
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
