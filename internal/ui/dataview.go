@@ -20,7 +20,6 @@ import (
 
 // DataTabInfo 每個標籤頁的資訊
 type DataTabInfo struct {
-	Name      string
 	DataTable *GenericDataTable
 	StatsData map[string]string
 }
@@ -58,9 +57,10 @@ type DataView struct {
 // NewDataView 創建一個新的多標籤頁數據視圖
 func NewDataView() *DataView {
 	// 創建第一個標籤頁
+	firstDataTable := insyra.NewDataTable()
+	firstDataTable.SetName("Tab 1") // 設定預設名稱
 	firstTab := &DataTabInfo{
-		Name:      "Tab 1",
-		DataTable: NewGenericDataTable(insyra.NewDataTable()),
+		DataTable: NewGenericDataTable(firstDataTable),
 		StatsData: make(map[string]string),
 	}
 	view := &DataView{
@@ -123,9 +123,10 @@ func (v *DataView) Layout(gtx layout.Context, th *material.Theme) layout.Dimensi
 // addNewTab 新增標籤頁
 func (v *DataView) addNewTab() {
 	newTabName := fmt.Sprintf("Tab %d", len(v.tabs)+1)
+	newDataTable := insyra.NewDataTable()
+	newDataTable.SetName(newTabName) // 設定 DataTable 名稱
 	newTab := &DataTabInfo{
-		Name:      newTabName,
-		DataTable: NewGenericDataTable(insyra.NewDataTable()),
+		DataTable: NewGenericDataTable(newDataTable),
 		StatsData: make(map[string]string),
 	}
 
@@ -160,11 +161,11 @@ func (v *DataView) layoutTabBar(gtx layout.Context, th *material.Theme) layout.D
 	// 1. 定義小工具佈局函式
 	widgetLayoutFuncs := make([]func(gtx layout.Context) layout.Dimensions, 0, len(v.tabs)+1)
 
-	for i, tabInfo := range v.tabs {
+	for i := range v.tabs {
 		capturedIndex := i
-		capturedTabInfo := tabInfo
 		widgetLayoutFuncs = append(widgetLayoutFuncs, func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, &v.tabButtons[capturedIndex], capturedTabInfo.Name)
+			tabName := v.getTabName(capturedIndex)
+			btn := material.Button(th, &v.tabButtons[capturedIndex], tabName)
 			if capturedIndex == v.currentTabIndex {
 				// 選中標籤使用與表格選中列相同的淡綠色背景
 				btn.Background = color.NRGBA{R: 235, G: 250, B: 235, A: 255} // 淡綠色
@@ -712,6 +713,28 @@ func (v *DataView) Update(e interface{}) {
 // Event 實現事件處理
 func (v *DataView) Event(e interface{}) {
 	// 事件處理將在 Layout 中完成
+}
+
+// getTabName 獲取標籤名稱，如果沒有名稱則使用預設命名
+func (v *DataView) getTabName(tabIndex int) string {
+	if tabIndex < 0 || tabIndex >= len(v.tabs) {
+		return fmt.Sprintf("Tab %d", tabIndex+1)
+	}
+
+	tab := v.tabs[tabIndex]
+	if tab.DataTable == nil || tab.DataTable.Table == nil {
+		return fmt.Sprintf("Tab %d", tabIndex+1)
+	}
+
+	// 嘗試從 DataTable 獲取名稱
+	tableName := tab.DataTable.Table.GetName()
+	if tableName == "" {
+		// 如果沒有名稱，使用預設的 Tab 命名並設定到 DataTable
+		tableName = fmt.Sprintf("Tab %d", tabIndex+1)
+		tab.DataTable.Table.SetName(tableName)
+	}
+
+	return tableName
 }
 
 // layoutColumnInput 繪製計算欄輸入區域
