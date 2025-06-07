@@ -223,6 +223,8 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 		dt.selectedRow = row
 		dt.selectedCol = col
 		editor.SetText(text)
+		// 取消列名編輯模式，確保儲存格選擇與列名選擇互斥
+		dt.editingColName = -1
 	}
 	// 若不在編輯模式，呈現可點擊文字模式
 	if dt.editingCell != cellKey {
@@ -303,6 +305,8 @@ func (dt *GenericDataTable) editableCell(gtx layout.Context, th *material.Theme,
 							dt.selectedContent = text
 							dt.selectedRow = row
 							dt.selectedCol = col
+							// 取消列名編輯模式，確保儲存格選擇與列名選擇互斥
+							dt.editingColName = -1
 						}
 
 						return material.Body2(th, displayText).Layout(gtx)

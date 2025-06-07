@@ -34,7 +34,6 @@ func (dt *GenericDataTable) editableColumnName(gtx layout.Context, th *material.
 
 	editor := dt.colNameEditors[colIndex]
 	clicker := dt.colNameClickers[colIndex]
-
 	// 若使用者點擊儲存格，進入編輯模式
 	if clicker.Clicked(gtx) {
 		dt.editingColName = colIndex
@@ -43,6 +42,9 @@ func (dt *GenericDataTable) editableColumnName(gtx layout.Context, th *material.
 		// 讓選中的儲存格內容顯示在頂部
 		dt.selectedCellKey = fmt.Sprintf("col:%d", colIndex)
 		dt.selectedContent = colName
+		// 取消儲存格編輯模式和選中狀態，確保列名選擇與儲存格選擇互斥
+		dt.editingCell = ""
+		dt.selectedRow = -1 // 清除選中行
 	}
 
 	// 若不在編輯模式，呈現可點擊文字模式
