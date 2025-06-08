@@ -82,7 +82,6 @@
 
   // 防止雙擊時觸發點擊的標記
   let doubleClickInProgress = false;
-
   // 編輯輸入元素引用
   let editInput: HTMLInputElement; // 當進入編輯模式時，設置焦點
   $: if (editingState.isEditing && editInput) {
@@ -90,6 +89,40 @@
       editInput.focus();
       editInput.select();
     }, 0);
+  } // 響應式更新選中內容顯示
+  $: if (tableData && !editingState.isEditing) {
+    updateSelectedCellContent();
+  }
+
+  // 當選擇狀態變化時即時更新選中內容顯示
+  $: if (tableData && (selectedRow >= 0 || selectedCol >= 0 || selectionMode)) {
+    if (!editingState.isEditing) {
+      updateSelectedCellContent();
+    }
+  }
+
+  // 更新選中內容顯示的函數
+  function updateSelectedCellContent() {
+    if (!tableData) return;
+
+    if (selectionMode === "row" && selectedRow >= 0) {
+      selectedCellContent = `第 ${selectedRow + 1} 行`;
+    } else if (selectionMode === "column" && selectedCol >= 0) {
+      selectedCellContent = `${indexToLetters(selectedCol)} 欄`;
+    } else if (
+      selectionMode === "cell" &&
+      selectedRow >= 0 &&
+      selectedCol >= 0
+    ) {
+      const column = tableData.columns[selectedCol];
+      if (column) {
+        const cellValue = tableData.rows[selectedRow]?.cells[column.name];
+        const displayValue = formatCellValue(cellValue);
+        selectedCellContent = `${indexToLetters(selectedCol)}${selectedRow + 1}: ${displayValue}`;
+      }
+    } else {
+      selectedCellContent = "";
+    }
   }
   onMount(async () => {
     lastTableID = tableID;
@@ -204,9 +237,9 @@
     selectionMode = "cell";
     selectedRow = rowIndex;
     selectedCol = colIndex;
-    selectedCellContent = value;
     selectedRowRange = new Set();
     selectedColRange = new Set();
+    // selectedCellContent 會自動由響應式語句更新
   } // 儲存格雙擊處理 (進入編輯模式)
   function handleCellDblClick(
     rowIndex: number,
@@ -282,7 +315,10 @@
     // 更新選擇狀態和顯示內容
     selectedCol = colIndex;
     selectedRow = -1;
-    selectedCellContent = colName;
+    selectionMode = "column";
+    selectedRowRange = new Set();
+    selectedColRange = new Set([colIndex]);
+    // selectedCellContent 會自動由響應式語句更新
   } // 欄位標題雙擊處理 (進入編輯模式)
   function handleColumnHeaderDblClick(colIndex: number, colName: string) {
     // 設置雙擊標記
@@ -407,7 +443,6 @@
     }
     return result;
   }
-
   // 行索引點擊處理 - 選取整行
   function handleRowIndexClick(rowIndex: number) {
     if (editingState.isEditing) {
@@ -419,7 +454,7 @@
     selectedCol = -1;
     selectedRowRange = new Set([rowIndex]);
     selectedColRange = new Set();
-    selectedCellContent = `第 ${rowIndex + 1} 行`;
+    // selectedCellContent 會自動由響應式語句更新
   }
 
   // 列索引點擊處理 - 選取整列
@@ -433,7 +468,7 @@
     selectedRow = -1;
     selectedColRange = new Set([colIndex]);
     selectedRowRange = new Set();
-    selectedCellContent = `${indexToLetters(colIndex)} 欄`;
+    // selectedCellContent 會自動由響應式語句更新
   }
   // 右鍵菜單處理
   function handleContextMenu(
