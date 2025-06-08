@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 
+	"slices"
+
 	"github.com/HazelnutParadise/insyra"
 )
 
@@ -452,7 +454,7 @@ func (s *DataTableService) AddRowByID(tableID int) bool {
 	}
 
 	// 創建新行資料，為每個欄位設置空值
-	newRowData := make([]interface{}, colCount)
+	newRowData := make([]any, colCount)
 	for i := range newRowData {
 		newRowData[i] = nil
 	}
@@ -512,6 +514,6 @@ func (s *DataTableService) RemoveTableByID(tableID int) bool {
 		return false
 	}
 	// 從切片中移除
-	s.dataTables = append(s.dataTables[:tableID], s.dataTables[tableID+1:]...)
+	s.dataTables = slices.Delete(s.dataTables, tableID, tableID+1)
 	return true
 }

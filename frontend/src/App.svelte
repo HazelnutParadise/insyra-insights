@@ -1,5 +1,8 @@
 <script lang="ts">
   import DataTable from "./components/DataTable.svelte";
+  import Alert from "./components/Alert.svelte";
+  import Confirm from "./components/Confirm.svelte";
+  import Input from "./components/Input.svelte";
   import {
     LoadTable,
     SaveTable,
@@ -21,6 +24,17 @@
   } from "../wailsjs/go/main/App";
   import { onMount } from "svelte";
   import { GetParamValue } from "../wailsjs/go/main/App";
+  import {
+    showAlert,
+    showConfirm,
+    showInput,
+    alertStore,
+    confirmStore,
+    inputStore,
+    closeAlert,
+    closeConfirm,
+    closeInput,
+  } from "./services/dialogService";
 
   // 標籤頁介面 - 改為使用數字 ID (slice 索引)
   interface TabInfo {
@@ -122,11 +136,19 @@
         );
       } else {
         console.error(`為標籤頁 ${newTabName} 創建空白資料表失敗`);
-        alert("創建新標籤頁失敗");
+        await showAlert({
+          title: "創建失敗",
+          message: "創建新標籤頁失敗",
+          type: "error",
+        });
       }
     } catch (err) {
       console.error("創建空白資料表時發生錯誤:", err);
-      alert(`創建新標籤頁時發生錯誤: ${err}`);
+      await showAlert({
+        title: "創建錯誤",
+        message: `創建新標籤頁時發生錯誤: ${err}`,
+        type: "error",
+      });
     }
   }
 
@@ -167,14 +189,24 @@
 
     // 至少保留一個標籤頁
     if (tabs.length <= 1) {
-      alert("至少需要保留一個標籤頁");
+      await showAlert({
+        title: "無法刪除",
+        message: "至少需要保留一個標籤頁",
+        type: "warning",
+      });
       return;
     }
 
     const tabToRemove = tabs[index];
-    const confirmMessage = `確定要刪除標籤頁 "${tabToRemove.name}" 嗎？此操作無法復原。`;
+    const confirmResult = await showConfirm({
+      title: "確認刪除",
+      message: `確定要刪除標籤頁 "${tabToRemove.name}" 嗎？此操作無法復原。`,
+      type: "danger",
+      confirmText: "刪除",
+      cancelText: "取消",
+    });
 
-    if (!confirm(confirmMessage)) {
+    if (!confirmResult) {
       return;
     }
 
@@ -232,7 +264,11 @@
       console.log(`成功刪除標籤頁 "${tabToRemove.name}"`);
     } catch (err) {
       console.error("刪除標籤頁時發生錯誤:", err);
-      alert(`刪除標籤頁時發生錯誤: ${err}`);
+      await showAlert({
+        title: "刪除錯誤",
+        message: `刪除標籤頁時發生錯誤: ${err}`,
+        type: "error",
+      });
     }
   }
 
@@ -251,15 +287,23 @@
         // 更新標籤頁 ID 為實際的 table ID
         tabs[currentTabIndex].id = createSuccess;
       } else {
-        alert("無法創建資料表");
+        await showAlert({
+          title: "創建失敗",
+          message: "無法創建資料表",
+          type: "error",
+        });
         return;
       }
     }
 
-    const columnName = prompt(
-      "請輸入新欄位名稱:",
-      `新欄位 ${currentStats["總欄數"] ? parseInt(currentStats["總欄數"]) + 1 : 1}`
-    );
+    const columnName = await showInput({
+      title: "新增欄位",
+      message: "請輸入新欄位名稱:",
+      placeholder: "欄位名稱",
+      defaultValue: `新欄位 ${currentStats["總欄數"] ? parseInt(currentStats["總欄數"]) + 1 : 1}`,
+      confirmText: "新增",
+      cancelText: "取消",
+    });
     if (columnName) {
       const activeTableID = tabs[currentTabIndex]?.id ?? 0;
       console.log("正在調用 AddColumnByID，參數:", {
@@ -275,11 +319,19 @@
           console.log("新增欄位成功");
         } else {
           console.error("AddColumn 回傳 false");
-          alert("新增欄位失敗");
+          await showAlert({
+            title: "新增失敗",
+            message: "新增欄位失敗",
+            type: "error",
+          });
         }
       } catch (error) {
         console.error("AddColumn 發生錯誤:", error);
-        alert(`新增欄位發生錯誤: ${error}`);
+        await showAlert({
+          title: "新增錯誤",
+          message: `新增欄位發生錯誤: ${error}`,
+          type: "error",
+        });
       }
     }
   }
@@ -298,7 +350,11 @@
         // 更新標籤頁 ID 為實際的 table ID
         tabs[currentTabIndex].id = createSuccess;
       } else {
-        alert("無法創建資料表");
+        await showAlert({
+          title: "創建失敗",
+          message: "無法創建資料表",
+          type: "error",
+        });
         return;
       }
     }
@@ -314,11 +370,19 @@
         console.log("新增行成功");
       } else {
         console.error("AddRowByID 回傳 false");
-        alert("新增行失敗");
+        await showAlert({
+          title: "新增失敗",
+          message: "新增行失敗",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("AddRow 發生錯誤:", error);
-      alert(`新增行發生錯誤: ${error}`);
+      await showAlert({
+        title: "新增錯誤",
+        message: `新增行發生錯誤: ${error}`,
+        type: "error",
+      });
     }
   }
 
@@ -370,7 +434,14 @@
   // 底部工具列操作
   async function openFile() {
     // 簡單的文件選擇邏輯，可以擴展為文件對話框
-    const input = prompt("請輸入檔案路徑:", filePath || "test-data.json");
+    const input = await showInput({
+      title: "開啟檔案",
+      message: "請輸入檔案路徑:",
+      placeholder: "檔案路徑",
+      defaultValue: filePath || "test-data.json",
+      confirmText: "開啟",
+      cancelText: "取消",
+    });
     if (input) {
       filePath = input;
       await handleLoadTable();
@@ -379,13 +450,24 @@
 
   async function saveFile() {
     if (!isTableLoaded) {
-      alert("沒有已載入的資料表可保存");
+      await showAlert({
+        title: "無法保存",
+        message: "沒有已載入的資料表可保存",
+        type: "warning",
+      });
       return;
     }
 
     // 如果沒有指定路徑，提示用戶輸入
     if (!filePath) {
-      const input = prompt("請輸入保存路徑:", "saved-data.json");
+      const input = await showInput({
+        title: "儲存檔案",
+        message: "請輸入保存路徑:",
+        placeholder: "檔案路徑",
+        defaultValue: "saved-data.json",
+        confirmText: "儲存",
+        cancelText: "取消",
+      });
       if (input) {
         filePath = input;
       } else {
@@ -396,22 +478,34 @@
     await handleSaveTable();
   }
 
-  function exportFile() {
+  async function exportFile() {
     // TODO: 實現匯出功能，可以支持 CSV, Excel 等格式
     console.log("匯出檔案", tabs[currentTabIndex]?.id);
-    alert("匯出功能尚未實現");
+    await showAlert({
+      title: "功能開發中",
+      message: "匯出功能尚未實現",
+      type: "info",
+    });
   }
 
-  function openSettings() {
+  async function openSettings() {
     // TODO: 實現設定功能，可以設置表格外觀、預設值等
     console.log("開啟設定");
-    alert("設定功能尚未實現");
+    await showAlert({
+      title: "功能開發中",
+      message: "設定功能尚未實現",
+      type: "info",
+    });
   }
 
   // 載入資料表
   async function handleLoadTable() {
     if (!filePath) {
-      alert("請輸入檔案路徑");
+      await showAlert({
+        title: "載入錯誤",
+        message: "請輸入檔案路徑",
+        type: "warning",
+      });
       return;
     }
 
@@ -428,17 +522,29 @@
         // 更新標籤頁 ID 為實際的 table ID
         tabs[currentTabIndex].id = newTableID;
       } else {
-        alert("載入資料表失敗");
+        await showAlert({
+          title: "載入失敗",
+          message: "載入資料表失敗",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert(`發生錯誤: ${err}`);
+      await showAlert({
+        title: "載入錯誤",
+        message: `發生錯誤: ${err}`,
+        type: "error",
+      });
     }
   }
 
   // 儲存資料表
   async function handleSaveTable() {
     if (!isTableLoaded || !filePath) {
-      alert("請先載入資料表或指定儲存路徑");
+      await showAlert({
+        title: "儲存錯誤",
+        message: "請先載入資料表或指定儲存路徑",
+        type: "warning",
+      });
       return;
     }
 
@@ -446,12 +552,24 @@
       const activeTableID = tabs[currentTabIndex]?.id ?? 0;
       const success = await SaveTableByID(activeTableID, filePath);
       if (success) {
-        alert("儲存成功");
+        await showAlert({
+          title: "儲存成功",
+          message: "資料表已成功儲存",
+          type: "success",
+        });
       } else {
-        alert("儲存失敗");
+        await showAlert({
+          title: "儲存失敗",
+          message: "儲存資料表失敗",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert(`發生錯誤: ${err}`);
+      await showAlert({
+        title: "儲存錯誤",
+        message: `發生錯誤: ${err}`,
+        type: "error",
+      });
     }
   }
 </script>
@@ -576,6 +694,25 @@
     >
   </div>
 </main>
+
+<!-- 對話框組件 -->
+<Alert
+  visible={$alertStore.visible}
+  options={$alertStore.options}
+  on:close={(e) => closeAlert()}
+/>
+
+<Confirm
+  visible={$confirmStore.visible}
+  options={$confirmStore.options}
+  on:close={(e) => closeConfirm(e.detail.result)}
+/>
+
+<Input
+  visible={$inputStore.visible}
+  options={$inputStore.options}
+  on:close={(e) => closeInput(e.detail.result)}
+/>
 
 <style>
   :global(body) {
