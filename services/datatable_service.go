@@ -462,18 +462,10 @@ func (s *DataTableService) AddCalculatedColumnByID(tableID int, columnName strin
 		return false
 	}
 
-	// TODO: 實現 CCL 表達式解析和計算
-	// 目前先創建一個空的計算欄位
-	rowCount, _ := dt.Size()
+	// 使用 AddColUsingCCL 方法來執行 CCL 公式並新增欄位
+	dt.AddColUsingCCL(columnName, formula)
+	// todo: 處理錯誤
 
-	// 創建計算結果欄位，暫時填充公式字符串
-	newData := make([]any, rowCount)
-	for i := range newData {
-		newData[i] = formula // 暫時顯示公式，實際應該計算結果
-	}
-
-	newCol := insyra.NewDataList(newData...).SetName(columnName)
-	dt.AppendCols(newCol)
 	return true
 }
 
