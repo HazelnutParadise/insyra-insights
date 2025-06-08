@@ -6,6 +6,8 @@
     UpdateCellValueByID,
     UpdateColumnNameByID,
   } from "../../wailsjs/go/main/App";
+  import ContextMenu from "./ContextMenu.svelte";
+  import type { ContextMenuConfig } from "../types/contextMenu";
 
   // 組件屬性
   export let tableID: number;
@@ -29,11 +31,54 @@
     value: "",
     isEditing: false,
   };
-
   // 選中狀態
   let selectedRow = -1;
   let selectedCol = -1;
   let selectedCellContent = "";
+
+  // 選擇模式：'cell' | 'row' | 'column'
+  let selectionMode = "cell";
+  let selectedRowRange = new Set(); // 選中的行範圍
+  let selectedColRange = new Set(); // 選中的列範圍
+
+  // 右鍵菜單狀態
+  let contextMenuVisible = false;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
+  let contextMenuType = ""; // 'row' | 'column' | 'cell'
+  let contextMenuContext = {}; // 上下文信息
+
+  // 右鍵菜單配置
+  const contextMenuConfig: ContextMenuConfig = {
+    row: [
+      { id: "insertRowAbove", label: "在上方插入行", icon: "⬆️" },
+      { id: "insertRowBelow", label: "在下方插入行", icon: "⬇️" },
+      { id: "separator1", type: "separator" },
+      { id: "duplicateRow", label: "複製行", icon: "📋" },
+      { id: "separator2", type: "separator" },
+      { id: "deleteRow", label: "刪除行", icon: "🗑️", danger: true },
+    ],
+    column: [
+      { id: "insertColumnLeft", label: "在左邊插入欄", icon: "⬅️" },
+      { id: "insertColumnRight", label: "在右邊插入欄", icon: "➡️" },
+      { id: "separator1", type: "separator" },
+      { id: "renameColumn", label: "重新命名欄位", icon: "✏️" },
+      { id: "duplicateColumn", label: "複製欄位", icon: "📋" },
+      { id: "separator2", type: "separator" },
+      { id: "deleteColumn", label: "刪除欄位", icon: "🗑️", danger: true },
+    ],
+    cell: [
+      { id: "copy", label: "複製", icon: "📋" },
+      { id: "paste", label: "貼上", icon: "📄", disabled: true }, // 可以根據剪貼簿狀態動態設置
+      { id: "separator1", type: "separator" },
+      { id: "clear", label: "清除內容", icon: "🧹" },
+      { id: "separator2", type: "separator" },
+      { id: "insertRowAbove", label: "在上方插入行", icon: "⬆️" },
+      { id: "insertRowBelow", label: "在下方插入行", icon: "⬇️" },
+      { id: "insertColumnLeft", label: "在左邊插入欄", icon: "⬅️" },
+      { id: "insertColumnRight", label: "在右邊插入欄", icon: "➡️" },
+    ],
+  };
 
   // 防止雙擊時觸發點擊的標記
   let doubleClickInProgress = false;
@@ -46,11 +91,18 @@
       editInput.select();
     }, 0);
   }
-
   onMount(async () => {
     lastTableID = tableID;
     lastTableKey = tableKey;
     await loadTableData();
+
+    // 添加文檔點擊事件監聽器
+    document.addEventListener("click", handleDocumentClick);
+
+    return () => {
+      // 清理事件監聽器
+      document.removeEventListener("click", handleDocumentClick);
+    };
   });
 
   // 當 tableID 或 tableKey 變化時重新載入
@@ -148,10 +200,13 @@
       handleEditComplete();
     }
 
-    // 更新選擇狀態和顯示內容
+    // 更新選擇狀態為儲存格模式
+    selectionMode = "cell";
     selectedRow = rowIndex;
     selectedCol = colIndex;
     selectedCellContent = value;
+    selectedRowRange = new Set();
+    selectedColRange = new Set();
   } // 儲存格雙擊處理 (進入編輯模式)
   function handleCellDblClick(
     rowIndex: number,
@@ -352,6 +407,149 @@
     }
     return result;
   }
+
+  // 行索引點擊處理 - 選取整行
+  function handleRowIndexClick(rowIndex: number) {
+    if (editingState.isEditing) {
+      handleEditComplete();
+    }
+
+    selectionMode = "row";
+    selectedRow = rowIndex;
+    selectedCol = -1;
+    selectedRowRange = new Set([rowIndex]);
+    selectedColRange = new Set();
+    selectedCellContent = `第 ${rowIndex + 1} 行`;
+  }
+
+  // 列索引點擊處理 - 選取整列
+  function handleColumnIndexClick(colIndex: number) {
+    if (editingState.isEditing) {
+      handleEditComplete();
+    }
+
+    selectionMode = "column";
+    selectedCol = colIndex;
+    selectedRow = -1;
+    selectedColRange = new Set([colIndex]);
+    selectedRowRange = new Set();
+    selectedCellContent = `${indexToLetters(colIndex)} 欄`;
+  }
+  // 右鍵菜單處理
+  function handleContextMenu(
+    event: MouseEvent,
+    type: string,
+    index?: number,
+    rowIndex?: number,
+    colIndex?: number
+  ) {
+    event.preventDefault();
+    contextMenuVisible = true;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuType = type;
+
+    // 設置上下文信息
+    contextMenuContext = {
+      type,
+      index,
+      rowIndex,
+      colIndex,
+      selectedRow,
+      selectedCol,
+      tableID,
+    }; // 根據右鍵類型更新選擇狀態
+    if (type === "row" && index !== undefined) {
+      handleRowIndexClick(index);
+    } else if (type === "column" && index !== undefined) {
+      handleColumnIndexClick(index);
+    } else if (
+      type === "cell" &&
+      rowIndex !== undefined &&
+      colIndex !== undefined &&
+      tableData
+    ) {
+      const column = tableData.columns[colIndex];
+      if (column) {
+        const cellValue = tableData.rows[rowIndex]?.cells[column.name];
+        const displayValue = formatCellValue(cellValue);
+        handleCellClick(rowIndex, colIndex, displayValue);
+      }
+    }
+  }
+
+  // 隱藏右鍵菜單
+  function hideContextMenu() {
+    contextMenuVisible = false;
+  }
+
+  // 點擊文件其他地方時隱藏菜單
+  function handleDocumentClick() {
+    if (contextMenuVisible) {
+      hideContextMenu();
+    }
+  } // 右鍵菜單項目處理
+  async function handleContextMenuAction(event: CustomEvent) {
+    const { action, context } = event.detail;
+
+    console.log("Context menu action:", action, "Context:", context);
+
+    switch (action) {
+      case "insertRowAbove":
+        console.log(`在第 ${context.rowIndex || context.index} 行上方插入行`);
+        break;
+      case "insertRowBelow":
+        console.log(`在第 ${context.rowIndex || context.index} 行下方插入行`);
+        break;
+      case "duplicateRow":
+        console.log(`複製第 ${context.rowIndex || context.index} 行`);
+        break;
+      case "deleteRow":
+        console.log(`刪除第 ${context.rowIndex || context.index} 行`);
+        break;
+      case "insertColumnLeft":
+        console.log(`在第 ${context.colIndex || context.index} 欄左邊插入欄`);
+        break;
+      case "insertColumnRight":
+        console.log(`在第 ${context.colIndex || context.index} 欄右邊插入欄`);
+        break;
+      case "renameColumn":
+        console.log(`重命名第 ${context.colIndex || context.index} 欄`);
+        // 可以觸發欄位名稱編輯
+        break;
+      case "duplicateColumn":
+        console.log(`複製第 ${context.colIndex || context.index} 欄`);
+        break;
+      case "deleteColumn":
+        console.log(`刪除第 ${context.colIndex || context.index} 欄`);
+        break;
+      case "copy":
+        console.log(`複製儲存格 (${context.rowIndex}, ${context.colIndex})`);
+        // 實現複製功能
+        break;
+      case "paste":
+        console.log(`貼上到儲存格 (${context.rowIndex}, ${context.colIndex})`);
+        // 實現貼上功能
+        break;
+      case "clear":
+        console.log(`清除儲存格 (${context.rowIndex}, ${context.colIndex})`);
+        // 實現清除功能
+        if (context.rowIndex !== undefined && context.colIndex !== undefined) {
+          await UpdateCellValueByID(
+            tableID,
+            context.rowIndex,
+            context.colIndex,
+            ""
+          );
+          // 重新載入資料
+          await loadTableData();
+        }
+        break;
+      default:
+        console.log("未知的菜單動作:", action);
+    }
+    hideContextMenu();
+  }
 </script>
 
 <div class="data-table-container">
@@ -367,12 +565,15 @@
           <tr>
             <!-- 空白頂角儲存格 -->
             <th class="corner-cell corner-index"></th>
-
             <!-- 欄位索引 -->
             {#each tableData.columns as column, colIndex}
               <th
                 class="column-index"
-                class:selected={colIndex === selectedCol}
+                class:selected={colIndex === selectedCol ||
+                  (selectionMode === "column" &&
+                    selectedColRange.has(colIndex))}
+                on:click={() => handleColumnIndexClick(colIndex)}
+                on:contextmenu={(e) => handleContextMenu(e, "column", colIndex)}
               >
                 {indexToLetters(colIndex)}
               </th>
@@ -412,11 +613,20 @@
         </thead>
         <tbody>
           {#each tableData.rows as row, rowIndex}
-            <tr class:selected-row={rowIndex === selectedRow}>
+            <tr
+              class:selected-row={rowIndex === selectedRow ||
+                (selectionMode === "row" && selectedRowRange.has(rowIndex))}
+            >
               <!-- 行標識 -->
-              <td class="row-header" class:selected={rowIndex === selectedRow}
-                >{rowIndex + 1}</td
+              <td
+                class="row-header"
+                class:selected={rowIndex === selectedRow ||
+                  (selectionMode === "row" && selectedRowRange.has(rowIndex))}
+                on:click={() => handleRowIndexClick(rowIndex)}
+                on:contextmenu={(e) => handleContextMenu(e, "row", rowIndex)}
               >
+                {rowIndex + 1}
+              </td>
               <!-- 儲存格資料 -->
               {#each tableData.columns as column, colIndex}
                 {@const cellValue = row.cells[column.name]}
@@ -425,8 +635,11 @@
                   class="cell"
                   class:selected-cell={rowIndex === selectedRow &&
                     colIndex === selectedCol}
-                  class:selected-col={colIndex === selectedCol}
-                  class:selected-row-cell={rowIndex === selectedRow}
+                  class:selected-col={colIndex === selectedCol ||
+                    (selectionMode === "column" &&
+                      selectedColRange.has(colIndex))}
+                  class:selected-row-cell={rowIndex === selectedRow ||
+                    (selectionMode === "row" && selectedRowRange.has(rowIndex))}
                   class:nil-value={cellValue === null ||
                     cellValue === undefined}
                   on:click={() =>
@@ -438,6 +651,8 @@
                       column.name,
                       displayValue
                     )}
+                  on:contextmenu={(e) =>
+                    handleContextMenu(e, "cell", undefined, rowIndex, colIndex)}
                   on:keydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       handleCellClick(rowIndex, colIndex, displayValue);
@@ -465,7 +680,6 @@
         </tbody>
       </table>
     </div>
-
     {#if selectedCellContent}
       <div class="selected-content">
         <strong>選中內容:</strong>
@@ -476,6 +690,18 @@
     <div class="no-data">無資料可顯示</div>
   {/if}
 </div>
+
+<!-- 右鍵菜單組件 -->
+<ContextMenu
+  visible={contextMenuVisible}
+  x={contextMenuX}
+  y={contextMenuY}
+  type={contextMenuType}
+  menuConfig={contextMenuConfig}
+  context={contextMenuContext}
+  on:action={handleContextMenuAction}
+  on:close={hideContextMenu}
+/>
 
 <style>
   .data-table-container {
