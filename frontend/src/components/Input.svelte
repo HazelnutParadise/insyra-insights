@@ -35,10 +35,9 @@
   function handleCancel() {
     dispatch("close", { action: "cancel", result: null });
   }
-
-  // 處理背景點擊（點擊背景關閉，等同於取消）
+  // 處理背景點擊（已禁用，不允許點擊背景關閉）
   function handleBackdropClick() {
-    handleCancel();
+    // 不執行任何操作，禁止點擊背景關閉對話框
   }
 
   // 處理 ESC 鍵（等同於取消）

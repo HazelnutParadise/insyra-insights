@@ -18,11 +18,9 @@
   function handleOk() {
     dispatch("close", { action: "ok" });
   }
-
-  // 處理背景點擊（可選，是否允許點擊背景關閉）
+  // 處理背景點擊（已禁用，不允許點擊背景關閉）
   function handleBackdropClick() {
-    // 可以選擇是否允許點擊背景關閉 Alert
-    // handleOk();
+    // 不執行任何操作，禁止點擊背景關閉對話框
   }
 
   // 處理 ESC 鍵
