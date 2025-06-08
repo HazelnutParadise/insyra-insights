@@ -50,6 +50,14 @@
   let filePath: string = "";
   let tableKey = 0; // 用於強制重新載入表格組件
 
+  // 標籤頁計數器
+  let tabCounter = 1; // 從1開始，因為已有一個 "Table 1"
+
+  // 標籤名稱編輯狀態
+  let editingTabIndex: number | null = null;
+  let editingTabName = "";
+  let editInputRef: HTMLInputElement | null = null;
+
   // 計算欄輸入狀態
   let showColumnInput = false;
   let columnFormulaValue = "";
@@ -106,7 +114,8 @@
 
   // 標籤頁操作
   async function addNewTab() {
-    const newTabName = `Tab ${tabs.length + 1}`;
+    tabCounter++; // 增加計數器
+    const newTabName = `Table ${tabCounter}`;
     const newTabID = tabs.length; // 使用數字ID作為slice索引
 
     // 為新標籤頁創建空白資料表
@@ -572,6 +581,57 @@
       });
     }
   }
+
+  // 標籤名稱編輯功能
+  function startEditingTabName(index: number, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    editingTabIndex = index;
+    editingTabName = tabs[index].name;
+
+    // 使用 setTimeout 確保 DOM 已更新
+    setTimeout(() => {
+      if (editInputRef) {
+        editInputRef.focus();
+        editInputRef.select();
+      }
+    }, 0);
+  }
+
+  function finishEditingTabName() {
+    if (editingTabIndex !== null && editingTabName.trim()) {
+      tabs[editingTabIndex].name = editingTabName.trim();
+      tabs = [...tabs]; // 觸發重新渲染
+    }
+    editingTabIndex = null;
+    editingTabName = "";
+  }
+
+  function cancelEditingTabName() {
+    editingTabIndex = null;
+    editingTabName = "";
+  }
+
+  function handleTabNameKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      finishEditingTabName();
+    } else if (event.key === "Escape") {
+      cancelEditingTabName();
+    }
+  }
+
+  function handleTabDoubleClick(index: number, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    startEditingTabName(index);
+  }
+
+  function handleTabRightClick(index: number, event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    startEditingTabName(index);
+  }
 </script>
 
 <main>
@@ -584,8 +644,22 @@
             class="tab-button"
             class:tab-active={tab.isActive}
             on:click={() => switchTab(index)}
+            on:dblclick={(event) => handleTabDoubleClick(index, event)}
+            on:contextmenu={(event) => handleTabRightClick(index, event)}
           >
-            {tab.name}
+            {#if editingTabIndex === index}
+              <input
+                bind:this={editInputRef}
+                type="text"
+                class="tab-name-input"
+                bind:value={editingTabName}
+                on:blur={finishEditingTabName}
+                on:keydown={handleTabNameKeydown}
+                placeholder="標籤名稱"
+              />
+            {:else}
+              {tab.name}
+            {/if}
           </button>
           <button
             class="tab-close-button"
@@ -1042,5 +1116,22 @@
 
   .toolbar-button:hover {
     opacity: 0.8;
+  }
+
+  /* 標籤名稱編輯樣式 */
+  .tab-name-input {
+    padding: 4px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: rgb(0, 0, 0);
+    font-size: 14px;
+    width: 100px;
+    /* 讓輸入框不會隨著標籤寬度變化而變形 */
+    min-width: 100px;
+  }
+
+  .tab-name-input::placeholder {
+    color: rgba(0, 0, 0, 0.5);
   }
 </style>
