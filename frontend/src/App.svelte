@@ -158,6 +158,84 @@
     tableKey++;
   }
 
+  // 刪除標籤頁
+  async function removeTab(index: number, event?: Event) {
+    // 阻止事件冒泡，避免觸發 switchTab
+    if (event) {
+      event.stopPropagation();
+    }
+
+    // 至少保留一個標籤頁
+    if (tabs.length <= 1) {
+      alert("至少需要保留一個標籤頁");
+      return;
+    }
+
+    const tabToRemove = tabs[index];
+    const confirmMessage = `確定要刪除標籤頁 "${tabToRemove.name}" 嗎？此操作無法復原。`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // 調用後端API刪除表格
+      const success = await RemoveTableByID(tabToRemove.id);
+      if (!success) {
+        console.warn(`刪除表格 ID ${tabToRemove.id} 失敗，但仍會移除標籤頁`);
+      }
+
+      // 從tabs陣列中移除對應的tab
+      tabs = tabs.filter((_, i) => i !== index);
+
+      // 處理刪除後的tab切換邏輯
+      if (index === currentTabIndex) {
+        // 如果刪除的是當前活動標籤頁
+        if (index >= tabs.length) {
+          // 如果刪除的是最後一個標籤頁，切換到前一個
+          currentTabIndex = tabs.length - 1;
+        }
+        // 否則保持當前索引（會自動切換到下一個標籤頁）
+
+        // 設置新的活動標籤頁
+        if (tabs.length > 0) {
+          tabs = tabs.map((tab, i) => ({
+            ...tab,
+            isActive: i === currentTabIndex,
+          }));
+
+          // 檢查新活動標籤頁的資料表狀態
+          const newActiveTab = tabs[currentTabIndex];
+          if (newActiveTab && newActiveTab.id >= 0) {
+            try {
+              const data = await GetTableDataByID(newActiveTab.id);
+              isTableLoaded = !!(data && (data.rows || data.columns));
+            } catch (err) {
+              console.log(
+                `標籤頁 ${currentTabIndex} 的資料表不存在或無效:`,
+                err
+              );
+              isTableLoaded = false;
+            }
+          } else {
+            isTableLoaded = false;
+          }
+
+          // 強制重新載入表格組件
+          tableKey++;
+        }
+      } else if (index < currentTabIndex) {
+        // 如果刪除的標籤頁在當前活動標籤頁之前，需要調整當前索引
+        currentTabIndex--;
+      }
+
+      console.log(`成功刪除標籤頁 "${tabToRemove.name}"`);
+    } catch (err) {
+      console.error("刪除標籤頁時發生錯誤:", err);
+      alert(`刪除標籤頁時發生錯誤: ${err}`);
+    }
+  }
+
   // 功能列操作
   async function addColumn() {
     // 檢查是否有活動的資料表
@@ -383,13 +461,23 @@
   <div class="tab-bar">
     <div class="tab-row">
       {#each tabs as tab, index}
-        <button
-          class="tab-button"
-          class:tab-active={tab.isActive}
-          on:click={() => switchTab(index)}
-        >
-          {tab.name}
-        </button>
+        <div class="tab-container">
+          <button
+            class="tab-button"
+            class:tab-active={tab.isActive}
+            on:click={() => switchTab(index)}
+          >
+            {tab.name}
+          </button>
+          <button
+            class="tab-close-button"
+            class:disabled={tabs.length <= 1}
+            on:click={(event) => removeTab(index, event)}
+            title="刪除標籤頁"
+          >
+            ×
+          </button>
+        </div>
       {/each}
       <button class="tab-add-button" on:click={addNewTab}>+</button>
     </div>
@@ -519,6 +607,12 @@
     align-items: center;
   }
 
+  .tab-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
   .tab-button {
     padding: 8px 16px;
     border: none;
@@ -529,6 +623,9 @@
     background-color: rgb(225, 235, 250); /* 淡藍色背景 - 未選中 */
     color: rgb(0, 90, 180); /* 藍色文字 */
     margin-bottom: -1px;
+    padding-right: 32px; /* 為刪除按鈕留出空間 */
+    position: relative;
+    overflow: visible;
   }
 
   .tab-button.tab-active {
@@ -539,6 +636,43 @@
 
   .tab-button:hover {
     opacity: 0.8;
+  }
+
+  .tab-close-button {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.1);
+    color: rgb(0, 90, 180);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+    padding: 0;
+    z-index: 10;
+  }
+
+  .tab-close-button.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .tab-close-button:hover {
+    background-color: rgba(255, 0, 0, 0.2);
+    color: rgb(200, 0, 0);
+  }
+
+  .tab-container:hover .tab-close-button {
+    background-color: rgba(0, 0, 0, 0.15);
   }
 
   .tab-add-button {
