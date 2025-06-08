@@ -5,7 +5,7 @@
     "version": "Version"
   },
   "welcome": {
-    "title": "Welcome to Insyra Insights",
+    "title": "Welcome to INSYRA Insights",
     "subtitle": "Statistical Analysis Software",
     "description": "Please select a data source to import, or start a new analysis project",
     "import_csv": "Import CSV File",

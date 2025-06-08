@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { GetText } from "../../wailsjs/go/main/App";
+  import logoUrl from "../assets/images/logo_transparent.png"; // 新增這行來匯入圖片
 
   const dispatch = createEventDispatcher();
 
@@ -13,7 +14,7 @@
     action: () => void;
   }
   let options: WelcomeOption[] = [];
-  let appTitle = "Insyra Insights";
+  let appTitle = "歡迎使用 INSYRA Insights"; // 修改標題
   let appSubtitle = "資料分析與視覺化工具";
   let recentFilesTitle = "最近使用的檔案";
   let noRecentFiles = "尚無最近使用的檔案";
@@ -30,7 +31,7 @@
   // 初始化選項和文字
   async function initOptions() {
     // 載入多語言文字
-    appTitle = (await t("welcome.title")) || "Insyra Insights";
+    appTitle = (await t("welcome.title")) || "歡迎使用 INSYRA Insights"; // 修改標題後備文字
     appSubtitle = (await t("welcome.subtitle")) || "資料分析與視覺化工具";
     recentFilesTitle = (await t("welcome.recent_files")) || "最近使用的檔案";
     noRecentFiles =
@@ -95,9 +96,10 @@
   <div class="brand-section">
     <div class="logo-area">
       <img
-        src="/src/assets/images/logo-universal.png"
+        src={logoUrl}
         alt="Insyra Insights"
         class="logo-image"
+        style="width: 100%;"
       />
       <h1 class="app-title">{appTitle}</h1>
       <p class="app-subtitle">{appSubtitle}</p>
@@ -162,25 +164,29 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+    background: linear-gradient(
+      135deg,
+      #87ceeb 0%,
+      /* 較淺的天藍色 */ #7ac5cd 50%,
+      /* 中間的天藍色 */ #6ca6cd 100% /* 較深的天藍色 */
+    );
     display: grid;
     grid-template-columns: 1fr 2fr;
     z-index: 1000;
-    font-family:
-      "Nunito",
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      sans-serif;
+    font-family: /* 移除 "Nunito" */ -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
     box-sizing: border-box;
   }
   /* 左側品牌區域 */
   .brand-section {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-    color: white;
-    padding: 3rem 2rem;
+    background: linear-gradient(
+      135deg,
+      #6fb5d2 0%,
+      /* 品牌區較亮的天藍色 */ #5a9ecb 100% /* 品牌區較深的天藍色 */
+    );
+    color: white; /* 文字顏色在深色背景上保持白色以確保對比度 */
+    padding: 2rem 1.5rem; /* 減少 padding */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -229,32 +235,21 @@
     width: 120px;
     height: 120px;
     object-fit: contain;
-    margin-bottom: 2rem;
-    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
-    animation: logoFloat 6s ease-in-out infinite;
-  }
-
-  @keyframes logoFloat {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
+    margin-bottom: 1.5rem; /* 減少 margin-bottom */
+    filter: none; /* 移除logo陰影 */
   }
 
   .app-title {
     font-size: 3.5rem;
     font-weight: 700;
-    color: white;
-    margin: 0 0 1rem 0;
-    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    color: white; /* 文字顏色在深色背景上保持白色 */
+    margin: 0 0 0.75rem 0; /* 減少 margin-bottom */
+    text-shadow: none; /* 移除文字陰影 */
   }
 
   .app-subtitle {
     font-size: 1.3rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.85); /* 調整副標題顏色以搭配新的背景 */
     margin: 0;
     font-weight: 300;
   }
@@ -314,20 +309,24 @@
   }
 
   .action-card.primary-action {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    background: linear-gradient(
+      135deg,
+      #7ac5cd 0%,
+      /* 主要按鈕較淺的天藍色 */ #6ca6cd 100% /* 主要按鈕較深的天藍色 */
+    );
     color: white;
-    border-color: #3b82f6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    border-color: #6ca6cd; /* 主要按鈕邊框 - 天藍色 */
+    box-shadow: 0 4px 12px rgba(108, 166, 205, 0.3); /* 主要按鈕陰影 - 天藍色基底 */
   }
 
   .action-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    border-color: #3b82f6;
+    border-color: #6ca6cd; /* 滑鼠懸停時的天藍色邊框 */
   }
 
   .action-card.primary-action:hover {
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 25px rgba(108, 166, 205, 0.4); /* 主要按鈕滑鼠懸停陰影 - 天藍色基底 */
   }
 
   .actions-grid {
