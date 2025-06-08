@@ -1,0 +1,720 @@
+<script lang="ts">
+  import DataTable from "./components/DataTable.svelte";
+  import DataTableByID from "./components/DataTableByID.svelte";
+  import {
+    LoadTable,
+    SaveTable,
+    AddColumn,
+    AddRow,
+    AddCalculatedColumn,
+    CreateEmptyTable,
+    // 基於 ID 的新方法
+    LoadTableByID,
+    SaveTableByID,
+    AddColumnByID,
+    AddRowByID,
+    AddCalculatedColumnByID,
+    CreateEmptyTableByID,
+    GetTableCount,
+    GetTableInfo,
+    RemoveTableByID,
+  } from "../wailsjs/go/main/App";
+  import { onMount } from "svelte";
+  import { GetParamValue } from "../wailsjs/go/main/App";
+
+  // 標籤頁介面 - 改為使用數字 ID (slice 索引)
+  interface TabInfo {
+    id: number;
+    name: string;
+    isActive: boolean;
+  }
+
+  // 狀態管理
+  let tabs: TabInfo[] = [{ id: 0, name: "Table 1", isActive: true }];
+  let currentTabIndex = 0;
+  let isTableLoaded: boolean = false;
+  let filePath: string = "";
+  let tableKey = 0; // 用於強制重新載入表格組件
+
+  // 計算欄輸入狀態
+  let showColumnInput = false;
+  let columnFormulaValue = "";
+  let columnNameValue = "";
+  let errorMessage = "";
+  let showError = false;
+
+  // 統計數據
+  let currentStats = {
+    總行數: "0",
+    總欄數: "0",
+    總儲存格: "0",
+    數值欄數: "0",
+  };
+
+  // 組件掛載時執行
+  onMount(async () => {
+    // 獲取命令行傳入的檔案路徑
+    try {
+      const autoLoadPath = (await GetParamValue("filepath")) || "";
+
+      if (autoLoadPath) {
+        filePath = autoLoadPath;
+        // 如果提供了文件路徑，則自動載入
+        await handleLoadTable();
+      }
+    } catch (err) {
+      console.error("無法獲取啟動參數", err);
+    }
+  });
+
+  // 標籤頁操作
+  async function addNewTab() {
+    const newTabName = `Tab ${tabs.length + 1}`;
+    const newTabID = tabs.length; // 使用數字ID作為slice索引
+    const newTab: TabInfo = {
+      id: newTabID,
+      name: newTabName,
+      isActive: false,
+    };
+
+    // 設置所有標籤為非活動
+    tabs = tabs.map((tab) => ({ ...tab, isActive: false }));
+    // 添加新標籤並設為活動
+    tabs = [...tabs, { ...newTab, isActive: true }];
+    currentTabIndex = tabs.length - 1;
+
+    // 為新標籤頁創建空白資料表
+    try {
+      const success = await CreateEmptyTableByID(newTabID, newTabName);
+      if (success >= 0) {
+        // CreateEmptyTableByID 返回 number (tableID)，-1表示失敗
+        isTableLoaded = true;
+        console.log(`成功為標籤頁 ${newTabName} 創建空白資料表`);
+      } else {
+        console.error(`為標籤頁 ${newTabName} 創建空白資料表失敗`);
+      }
+    } catch (err) {
+      console.error("創建空白資料表時發生錯誤:", err);
+    }
+  }
+
+  function switchTab(index: number) {
+    tabs = tabs.map((tab, i) => ({ ...tab, isActive: i === index }));
+    currentTabIndex = index;
+  }
+
+  // 功能列操作
+  async function addColumn() {
+    // 檢查是否有活動的資料表
+    if (!isTableLoaded) {
+      // 如果沒有資料表，先創建一個空白資料表
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      const createSuccess = await CreateEmptyTableByID(
+        activeTableID,
+        `Table ${activeTableID + 1}`
+      );
+      if (createSuccess >= 0) {
+        isTableLoaded = true;
+        // 更新標籤頁 ID 為實際的 table ID
+        tabs[currentTabIndex].id = createSuccess;
+      } else {
+        alert("無法創建資料表");
+        return;
+      }
+    }
+
+    const columnName = prompt(
+      "請輸入新欄位名稱:",
+      `新欄位 ${currentStats["總欄數"] ? parseInt(currentStats["總欄數"]) + 1 : 1}`
+    );
+    if (columnName) {
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      console.log("正在調用 AddColumnByID，參數:", {
+        activeTableID,
+        columnName,
+      });
+      try {
+        const success = await AddColumnByID(activeTableID, columnName);
+        console.log("AddColumnByID 回傳結果:", success);
+        if (success) {
+          // 重新載入表格數據以顯示新增的欄位
+          await refreshCurrentTable();
+          console.log("新增欄位成功");
+        } else {
+          console.error("AddColumn 回傳 false");
+          alert("新增欄位失敗");
+        }
+      } catch (error) {
+        console.error("AddColumn 發生錯誤:", error);
+        alert(`新增欄位發生錯誤: ${error}`);
+      }
+    }
+  }
+
+  async function addRow() {
+    // 檢查是否有活動的資料表
+    if (!isTableLoaded) {
+      // 如果沒有資料表，先創建一個空白資料表
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      const createSuccess = await CreateEmptyTableByID(
+        activeTableID,
+        `Table ${activeTableID + 1}`
+      );
+      if (createSuccess >= 0) {
+        isTableLoaded = true;
+        // 更新標籤頁 ID 為實際的 table ID
+        tabs[currentTabIndex].id = createSuccess;
+      } else {
+        alert("無法創建資料表");
+        return;
+      }
+    }
+
+    const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+    console.log("正在調用 AddRowByID，參數:", { activeTableID });
+    try {
+      const success = await AddRowByID(activeTableID);
+      console.log("AddRowByID 回傳結果:", success);
+      if (success) {
+        // 重新載入表格數據以顯示新增的行
+        await refreshCurrentTable();
+        console.log("新增行成功");
+      } else {
+        console.error("AddRowByID 回傳 false");
+        alert("新增行失敗");
+      }
+    } catch (error) {
+      console.error("AddRow 發生錯誤:", error);
+      alert(`新增行發生錯誤: ${error}`);
+    }
+  }
+
+  function addCalculatedColumn() {
+    showColumnInput = true;
+  }
+
+  async function confirmAddColumn() {
+    if (columnNameValue && columnFormulaValue) {
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      const success = await AddCalculatedColumnByID(
+        activeTableID,
+        columnNameValue,
+        columnFormulaValue
+      );
+      if (success) {
+        // 重新載入表格數據以顯示新增的計算欄
+        await refreshCurrentTable();
+        cancelAddColumn();
+      } else {
+        showError = true;
+        errorMessage = "添加計算欄失敗";
+      }
+    } else {
+      showError = true;
+      errorMessage = "請輸入欄位名稱與 CCL 表達式";
+    }
+  }
+
+  function cancelAddColumn() {
+    showColumnInput = false;
+    columnFormulaValue = "";
+    columnNameValue = "";
+    showError = false;
+    errorMessage = "";
+  }
+
+  // 重新載入當前表格
+  async function refreshCurrentTable() {
+    // 通過改變 key 來強制重新載入表格組件
+    tableKey++;
+  }
+
+  // 接收統計數據更新
+  function handleStatsUpdate(event: CustomEvent) {
+    currentStats = event.detail;
+  }
+
+  // 底部工具列操作
+  async function openFile() {
+    // 簡單的文件選擇邏輯，可以擴展為文件對話框
+    const input = prompt("請輸入檔案路徑:", filePath || "test-data.json");
+    if (input) {
+      filePath = input;
+      await handleLoadTable();
+    }
+  }
+
+  async function saveFile() {
+    if (!isTableLoaded) {
+      alert("沒有已載入的資料表可保存");
+      return;
+    }
+
+    // 如果沒有指定路徑，提示用戶輸入
+    if (!filePath) {
+      const input = prompt("請輸入保存路徑:", "saved-data.json");
+      if (input) {
+        filePath = input;
+      } else {
+        return;
+      }
+    }
+
+    await handleSaveTable();
+  }
+
+  function exportFile() {
+    // TODO: 實現匯出功能，可以支持 CSV, Excel 等格式
+    console.log("匯出檔案", tabs[currentTabIndex]?.id);
+    alert("匯出功能尚未實現");
+  }
+
+  function openSettings() {
+    // TODO: 實現設定功能，可以設置表格外觀、預設值等
+    console.log("開啟設定");
+    alert("設定功能尚未實現");
+  }
+
+  // 載入資料表
+  async function handleLoadTable() {
+    if (!filePath) {
+      alert("請輸入檔案路徑");
+      return;
+    }
+
+    try {
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      const tableName = `Table ${activeTableID + 1}`;
+      const newTableID = await LoadTableByID(
+        activeTableID,
+        tableName,
+        filePath
+      );
+      if (newTableID >= 0) {
+        isTableLoaded = true;
+        // 更新標籤頁 ID 為實際的 table ID
+        tabs[currentTabIndex].id = newTableID;
+      } else {
+        alert("載入資料表失敗");
+      }
+    } catch (err) {
+      alert(`發生錯誤: ${err}`);
+    }
+  }
+
+  // 儲存資料表
+  async function handleSaveTable() {
+    if (!isTableLoaded || !filePath) {
+      alert("請先載入資料表或指定儲存路徑");
+      return;
+    }
+
+    try {
+      const activeTableID = tabs[currentTabIndex]?.id ?? 0;
+      const success = await SaveTableByID(activeTableID, filePath);
+      if (success) {
+        alert("儲存成功");
+      } else {
+        alert("儲存失敗");
+      }
+    } catch (err) {
+      alert(`發生錯誤: ${err}`);
+    }
+  }
+</script>
+
+<main>
+  <!-- 標籤列 -->
+  <div class="tab-bar">
+    <div class="tab-row">
+      {#each tabs as tab, index}
+        <button
+          class="tab-button"
+          class:tab-active={tab.isActive}
+          on:click={() => switchTab(index)}
+        >
+          {tab.name}
+        </button>
+      {/each}
+      <button class="tab-add-button" on:click={addNewTab}>+</button>
+    </div>
+  </div>
+
+  <!-- 功能列 -->
+  <div class="function-bar">
+    <div class="function-buttons">
+      <button class="function-button" on:click={addColumn}>新增欄</button>
+      <button class="function-button" on:click={addRow}>新增列</button>
+      <button class="function-button" on:click={addCalculatedColumn}
+        >新增計算欄</button
+      >
+    </div>
+
+    <!-- 計算欄輸入區域 -->
+    {#if showColumnInput}
+      <div class="column-input">
+        <div class="input-row">
+          <span class="fx-label">fx</span>
+          <input
+            type="text"
+            class="column-name-input"
+            placeholder="名稱"
+            bind:value={columnNameValue}
+          />
+          <span class="equals">=</span>
+          <input
+            type="text"
+            class="formula-input"
+            placeholder="CCL 表達式"
+            bind:value={columnFormulaValue}
+          />
+          <button class="confirm-button" on:click={confirmAddColumn}>✓</button>
+          <button class="cancel-button" on:click={cancelAddColumn}>✕</button>
+        </div>
+        {#if showError}
+          <div class="error-message">{errorMessage}</div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- 主要內容區域 -->
+  <div class="main-content">
+    <!-- 左側表格區域 -->
+    <div class="table-area">
+      {#if isTableLoaded}
+        <DataTableByID
+          tableID={tabs[currentTabIndex]?.id ?? 0}
+          on:statsUpdate={handleStatsUpdate}
+          {tableKey}
+        />
+      {:else}
+        <div class="table-placeholder">
+          <p>資料表為空，請新增資料</p>
+        </div>
+      {/if}
+    </div>
+
+    <!-- 右側資訊區域 -->
+    <div class="info-area">
+      <div class="info-header">
+        <h3>基本統計</h3>
+      </div>
+      <div class="stats-content">
+        <div class="stat-item">
+          <span class="stat-label">行數:</span>
+          <span class="stat-value">{currentStats["總行數"]}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">列數:</span>
+          <span class="stat-value">{currentStats["總欄數"]}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">總儲存格:</span>
+          <span class="stat-value">{currentStats["總儲存格"]}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">數值欄數:</span>
+          <span class="stat-value">{currentStats["數值欄數"]}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部工具列 -->
+  <div class="bottom-toolbar">
+    <button class="toolbar-button open-button" on:click={openFile}>開啟</button>
+    <button class="toolbar-button save-button" on:click={saveFile}>存檔</button>
+    <button class="toolbar-button export-button" on:click={exportFile}
+      >匯出</button
+    >
+    <button class="toolbar-button settings-button" on:click={openSettings}
+      >設定</button
+    >
+  </div>
+</main>
+
+<style>
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  }
+
+  main {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    background-color: #f5f8ff;
+  }
+
+  /* 標籤列樣式 */
+  .tab-bar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 4px 8px 0 8px;
+  }
+
+  .tab-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .tab-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px 4px 0 0;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: rgb(225, 235, 250); /* 淡藍色背景 - 未選中 */
+    color: rgb(0, 90, 180); /* 藍色文字 */
+    margin-bottom: -1px;
+  }
+
+  .tab-button.tab-active {
+    background-color: rgb(235, 250, 235); /* 淡綠色背景 - 選中 */
+    color: rgb(0, 0, 0); /* 黑色文字 */
+    border-bottom: 2px solid rgb(235, 250, 235);
+  }
+
+  .tab-button:hover {
+    opacity: 0.8;
+  }
+
+  .tab-add-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: rgb(225, 245, 254); /* 淡藍色背景 */
+    color: rgb(33, 150, 243); /* 藍色文字 */
+    margin-bottom: -1px;
+  }
+
+  .tab-add-button:hover {
+    opacity: 0.8;
+  }
+
+  /* 功能列樣式 */
+  .function-bar {
+    background-color: rgb(63, 81, 181); /* Material Design Indigo 500 */
+    padding: 8px 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .function-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .function-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.15); /* 半透明白色背景 */
+    color: rgb(255, 255, 255); /* 白色文字 */
+    transition: all 0.2s;
+  }
+
+  .function-button:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  /* 計算欄輸入區域 */
+  .column-input {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fx-label {
+    color: rgb(200, 200, 200);
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .column-name-input {
+    width: 100px;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 14px;
+  }
+
+  .column-name-input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .equals {
+    color: white;
+    font-weight: bold;
+  }
+
+  .formula-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 14px;
+  }
+
+  .formula-input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .confirm-button {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: rgb(0, 150, 0);
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .cancel-button {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: rgb(150, 0, 0);
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .error-message {
+    margin-top: 4px;
+    padding: 4px 8px;
+    color: rgb(255, 200, 200);
+    font-size: 12px;
+  }
+
+  /* 主要內容區域 */
+  .main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .table-area {
+    flex: 3;
+    background-color: white;
+    overflow: auto;
+  }
+
+  .table-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #757575;
+    font-size: 16px;
+  }
+
+  /* 右側資訊區域 */
+  .info-area {
+    flex: 1;
+    background-color: rgb(245, 248, 255); /* 淡藍灰色 */
+    border-left: 1px solid #e0e0e0;
+    overflow: auto;
+  }
+
+  .info-header {
+    padding: 16px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .info-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: rgb(0, 90, 180); /* 藍色 */
+  }
+
+  .stats-content {
+    padding: 16px;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .stat-value {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  /* 底部工具列 */
+  .bottom-toolbar {
+    background-color: rgb(180, 220, 255); /* 淡藍紫色背景 */
+    padding: 6px;
+    display: flex;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+    border-top: 1px solid rgb(220, 225, 230);
+  }
+
+  .toolbar-button {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 0;
+    font-size: 14px;
+    cursor: pointer;
+    margin: 0 3px;
+    transition: all 0.2s;
+  }
+
+  .open-button {
+    background-color: rgb(240, 253, 244); /* 淡綠色背景 */
+    color: rgb(34, 197, 94); /* 綠色文字 */
+  }
+
+  .save-button {
+    background-color: rgb(239, 246, 255); /* 淡藍色背景 */
+    color: rgb(59, 130, 246); /* 藍色文字 */
+  }
+
+  .export-button {
+    background-color: rgb(255, 251, 235); /* 淡橙色背景 */
+    color: rgb(245, 158, 11); /* 橙色文字 */
+  }
+
+  .settings-button {
+    background-color: rgb(249, 250, 251); /* 淡灰色背景 */
+    color: rgb(107, 114, 128); /* 灰色文字 */
+  }
+
+  .toolbar-button:hover {
+    opacity: 0.8;
+  }
+</style>
