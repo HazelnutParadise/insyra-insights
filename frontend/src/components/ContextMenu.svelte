@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { portal } from "../lib/portal"; // 新增：導入 portal
   import type {
     ContextMenuItem,
     ContextMenuConfig,
@@ -48,10 +49,56 @@
     dispatch("close");
   }
 
+  // 點擊 ContextMenu 內部時，阻止事件冒泡到 backdrop
+  function handleMenuClick(event: MouseEvent) {
+    event.stopPropagation();
+  }
+
   // 獲取當前類型的菜單項目，優先使用父組件傳入的配置
   $: currentMenuItems = (menuConfig[type] ||
     defaultMenuItems[type] ||
-    []) as ContextMenuItem[];
+    []) as ContextMenuItem[]; // 計算選單位置，避免超出螢幕邊界
+  $: menuLeft = (() => {
+    if (typeof window === "undefined") return x;
+    const menuWidth = 200; // 選單最小寬度
+    const padding = 8; // 距離螢幕邊緣的間距
+
+    // 調試信息
+    console.log("Menu positioning:", {
+      x,
+      y,
+      windowWidth: window.innerWidth,
+      windowHeight: window.innerHeight,
+      calculated: { left: x, top: y },
+    });
+
+    // 檢查右邊是否會超出螢幕
+    if (x + menuWidth + padding > window.innerWidth) {
+      // 超出右邊界，顯示在滑鼠左側
+      return Math.max(padding, x - menuWidth);
+    } // 正常顯示在滑鼠位置（不偏移）
+    return Math.max(padding, x);
+  })();
+  $: menuTop = (() => {
+    if (typeof window === "undefined") return y;
+    // 計算實際選單高度，基於實際的 CSS 變數值
+    const itemHeight = 40; // padding: 8px top + 8px bottom + ~24px 內容高度
+    const separatorHeight = 17; // 1px 分隔線 + 2 * 8px margin
+    const menuPadding = 8; // padding: 4px top + 4px bottom (--spacing-extra-small)
+    const screenPadding = 8; // 距離螢幕邊緣的間距
+
+    let menuHeight = menuPadding;
+    currentMenuItems.forEach((item) => {
+      menuHeight += item.type === "separator" ? separatorHeight : itemHeight;
+    });
+
+    // 檢查下方是否會超出螢幕
+    if (y + menuHeight + screenPadding > window.innerHeight) {
+      // 超出下邊界，顯示在滑鼠上方
+      return Math.max(screenPadding, y - menuHeight);
+    } // 正常顯示在滑鼠位置（不偏移）
+    return Math.max(screenPadding, y);
+  })();
 </script>
 
 {#if visible}
@@ -63,12 +110,10 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
+      use:portal
       class="context-menu"
-      style="left: {Math.min(x, window.innerWidth - 200)}px; top: {Math.min(
-        y,
-        window.innerHeight - 300
-      )}px;"
-      on:click|stopPropagation
+      style="left: {menuLeft}px; top: {menuTop}px;"
+      on:click={handleMenuClick}
     >
       {#each currentMenuItems as item}
         {#if item.type === "separator"}

@@ -340,12 +340,14 @@
     selectedRowRange = new Set();
     selectedColRange = new Set();
     // selectedCellContent 會自動由響應式語句更新
-  } // 儲存格雙擊處理 (進入編輯模式)
+  }
+
+  // 儲存格雙擊處理 (進入編輯模式)
   function handleCellDblClick(
     rowIndex: number,
     colIndex: number,
     colName: string,
-    value: string
+    rawValue: any
   ) {
     // 設置雙擊標記
     doubleClickInProgress = true;
@@ -373,13 +375,15 @@
     selectedCol = colIndex;
     // 不更新 selectedCellContent
 
-    // 進入編輯模式
+    // 進入編輯模式 - 對 nil 值使用空字串而不是點號
+    const editValue =
+      rawValue === null || rawValue === undefined ? "" : String(rawValue);
     editingState = {
       tableID,
       rowIndex,
       colIndex,
       colName,
-      value,
+      value: editValue,
       isEditing: true,
     };
 
@@ -387,7 +391,9 @@
     setTimeout(() => {
       doubleClickInProgress = false;
     }, 10);
-  } // 欄位標題點擊處理
+  }
+
+  // 欄位標題點擊處理
   function handleColumnHeaderClick(colIndex: number, colName: string) {
     // 如果正在雙擊過程中，忽略點擊事件
     if (doubleClickInProgress) {
@@ -593,6 +599,18 @@
     contextMenuY = event.clientY;
     contextMenuType = type;
 
+    // 調試信息
+    console.log("Mouse position:", {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      pageX: event.pageX,
+      pageY: event.pageY,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      offsetX: event.offsetX,
+      offsetY: event.offsetY,
+    });
+
     // 設置上下文信息
     contextMenuContext = {
       type,
@@ -797,7 +815,7 @@
                       rowIndex,
                       colIndex,
                       column.name,
-                      displayValue
+                      cellValue
                     )}
                   on:contextmenu={(e) =>
                     handleContextMenu(e, "cell", undefined, rowIndex, colIndex)}

@@ -49,6 +49,11 @@
   --radius-xl: 24px;
 
   /* 間距 */
+  --spacing-extra-small: 4px;
+  --spacing-small: 8px;
+  --spacing-medium: 16px;
+  --spacing-large: 24px;
+  --spacing-extra-large: 32px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
