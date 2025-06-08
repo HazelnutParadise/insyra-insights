@@ -18,7 +18,6 @@
 
   // 創建事件分發器
   const dispatch = createEventDispatcher();
-
   // 獲取實際使用的選項值（使用 i18n 翻譯作為預設值）
   $: actualOptions = {
     title: options.title || texts["dialog_defaults.input_title"] || "輸入",
@@ -30,12 +29,12 @@
     cancelText:
       options.cancelText || texts["dialog_defaults.cancel_button"] || "取消",
     inputType: options.inputType || "text",
-  }; // 輸入值
+  };
+
+  // 輸入值
   let inputValue = "";
   let inputElement: HTMLInputElement;
-  let previousVisible = false;
-
-  // 當對話框變為可見時，重置輸入值並設置焦點
+  let previousVisible = false; // 當對話框變為可見時，重置輸入值並設置焦點
   $: if (visible && !previousVisible) {
     // 總是重置為預設值，避免記憶性問題
     inputValue = actualOptions.defaultValue || "";
@@ -47,11 +46,13 @@
         }
       }
     });
+    previousVisible = visible;
   }
 
-  // 當對話框變為不可見時，清空輸入值
+  // 當對話框變為不可見時，清空輸入值並更新 previousVisible
   $: if (!visible && previousVisible) {
     inputValue = "";
+    previousVisible = visible;
   }
 
   $: previousVisible = visible;
@@ -111,7 +112,6 @@
       {#if actualOptions.title}
         <h2 class="input-title" id="input-title">{actualOptions.title}</h2>
       {/if}
-
       <div class="input-content-area">
         {#if actualOptions.message}
           <p class="input-message" id="input-message">
