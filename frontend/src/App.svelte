@@ -562,38 +562,44 @@
 
       if (confirmed) {
         await saveProject();
+      } else {
+        // 如果用戶取消儲存，則不繼續開啟檔案
+        return;
       }
     }
 
     // 開啟專案檔案
-    const input = await showInput({
-      title: await t("ui.buttons.open_file"),
-      message: await t("messages.select_file"),
-      placeholder: await t("ui.placeholders.file_path"),
-      defaultValue: currentProjectPath || "project.isr",
-      confirmText: await t("ui.buttons.open_file"),
-      cancelText: await t("ui.buttons.cancel"),
-    });
+    try {
+      // Wails OpenFileDialog 預期一個篩選器字串，例如 "Insyra 專案檔案 (*.insa)|*.insa"
+      const fileFilter = `${await t("file_operations.project_file_description")} (*.insa)|*.insa`;
+      const selectedPath = await OpenFileDialog(fileFilter);
 
-    if (input) {
-      const success = await LoadProject(input);
-      if (success) {
-        currentProjectPath = input;
-        hasUnsavedChanges = false;
-        await showAlert({
-          title: await t("messages.import_success"),
-          message: input,
-          type: "success",
-        });
-        // 重新載入界面
-        location.reload();
-      } else {
-        await showAlert({
-          title: await t("messages.import_fail"),
-          message: input,
-          type: "error",
-        });
+      if (selectedPath) {
+        const success = await LoadProject(selectedPath);
+        if (success) {
+          currentProjectPath = selectedPath;
+          hasUnsavedChanges = false;
+          await showAlert({
+            title: await t("messages.import_success"),
+            message: selectedPath,
+            type: "success",
+          });
+          location.reload();
+        } else {
+          await showAlert({
+            title: await t("messages.import_fail"),
+            message: selectedPath,
+            type: "error",
+          });
+        }
       }
+    } catch (err) {
+      console.error("開啟專案檔案時發生錯誤:", err);
+      await showAlert({
+        title: await t("messages.import_fail"),
+        message: String(err),
+        type: "error",
+      });
     }
   }
 
@@ -622,33 +628,37 @@
   }
 
   async function saveProjectAs() {
-    const input = await showInput({
-      title: await t("dialogs.save_as.title"),
-      message: await t("dialogs.save_as.message"),
-      placeholder: await t("file_operations.project_file"),
-      defaultValue: currentProjectPath || "project.isr",
-      confirmText: await t("ui.buttons.save_as"),
-      cancelText: await t("ui.buttons.cancel"),
-    });
+    try {
+      const fileFilter = `${await t("file_operations.project_file_description")} (*.insa)|*.insa`;
+      const selectedPath = await OpenFileDialog(fileFilter); // 實際上 Wails 的 OpenFileDialog 通常用於開啟，另存為可能需要 SaveFileDialog
+      // 假設此處的 OpenFileDialog 也能用於「另存為」的情境，或者後端 SaveProjectAs 會處理路徑
 
-    if (input) {
-      const success = await SaveProjectAs(input);
-      if (success) {
-        currentProjectPath = input;
-        hasUnsavedChanges = false;
-        await MarkAsSaved();
-        await showAlert({
-          title: await t("messages.save_success"),
-          message: input,
-          type: "success",
-        });
-      } else {
-        await showAlert({
-          title: await t("messages.save_fail"),
-          message: input,
-          type: "error",
-        });
+      if (selectedPath) {
+        const success = await SaveProjectAs(selectedPath);
+        if (success) {
+          currentProjectPath = selectedPath;
+          hasUnsavedChanges = false;
+          await MarkAsSaved();
+          await showAlert({
+            title: await t("messages.save_success"),
+            message: selectedPath,
+            type: "success",
+          });
+        } else {
+          await showAlert({
+            title: await t("messages.save_fail"),
+            message: selectedPath,
+            type: "error",
+          });
+        }
       }
+    } catch (err) {
+      console.error("另存專案檔案時發生錯誤:", err);
+      await showAlert({
+        title: await t("messages.save_fail"),
+        message: String(err),
+        type: "error",
+      });
     }
   }
 
@@ -677,31 +687,17 @@
     // 選擇匯出路徑
     const currentTabName = tabs[currentTabIndex]?.name || "table";
     const defaultFileName = `${currentTabName}.${format.toLowerCase()}`;
-
-    const filePath = await showInput({
-      title: await t("messages.choose_save_location"),
-      message: "請輸入匯出檔案路徑:",
-      placeholder: defaultFileName,
-      defaultValue: defaultFileName,
-      confirmText: await t("ui.buttons.export_table"),
-      cancelText: await t("ui.buttons.cancel"),
-    });
-
-    if (!filePath) return;
-
-    const currentTableID = tabs[currentTabIndex]?.id ?? 0;
-    let success = false;
-
+    let fileFilter = "";
     switch (format.toLowerCase()) {
       case "csv":
-        success = await ExportTableAsCSV(currentTableID, filePath);
+        fileFilter = `CSV (*.csv)|*.csv`;
         break;
       case "json":
-        success = await ExportTableAsJSON(currentTableID, filePath);
+        fileFilter = `JSON (*.json)|*.json`;
         break;
       case "excel":
       case "xlsx":
-        success = await ExportTableAsExcel(currentTableID, filePath);
+        fileFilter = `Excel (*.xlsx)|*.xlsx`;
         break;
       default:
         await showAlert({
@@ -712,16 +708,45 @@
         return;
     }
 
-    if (success) {
-      await showAlert({
-        title: await t("messages.export_success"),
-        message: filePath,
-        type: "success",
-      });
-    } else {
+    try {
+      const selectedPath = await OpenFileDialog(fileFilter); // 假設 OpenFileDialog 可用於儲存
+
+      if (!selectedPath) return;
+
+      const currentTableID = tabs[currentTabIndex]?.id ?? 0;
+      let success = false;
+
+      switch (format.toLowerCase()) {
+        case "csv":
+          success = await ExportTableAsCSV(currentTableID, selectedPath);
+          break;
+        case "json":
+          success = await ExportTableAsJSON(currentTableID, selectedPath);
+          break;
+        case "excel":
+        case "xlsx":
+          success = await ExportTableAsExcel(currentTableID, selectedPath);
+          break;
+      }
+
+      if (success) {
+        await showAlert({
+          title: await t("messages.export_success"),
+          message: selectedPath,
+          type: "success",
+        });
+      } else {
+        await showAlert({
+          title: await t("messages.export_fail"),
+          message: selectedPath,
+          type: "error",
+        });
+      }
+    } catch (err) {
+      console.error("匯出表格時發生錯誤:", err);
       await showAlert({
         title: await t("messages.export_fail"),
-        message: filePath,
+        message: String(err),
         type: "error",
       });
     }
@@ -739,10 +764,18 @@
 
   // 載入資料表
   async function handleLoadTable() {
+    // filePath 變數在此函數中不再由用戶手動輸入，而是來自例如啟動參數
+    // 因此，如果 filePath 為空，表示沒有透過參數傳入檔案路徑，
+    // 此函數可能不應該被直接調用，或者應該有其他方式獲取路徑。
+    // 這裡假設如果 filePath 為空，則不執行任何操作，或提示用戶。
     if (!filePath) {
+      // 考慮是否應該提示用戶選擇檔案，如果此函數預期被用戶觸發
+      // 例如，可以調用一個新的輔助函數來開啟檔案選擇器
+      // await selectAndLoadTable();
+      // 或者，如果 filePath 必須由外部設定，則顯示警告
       await showAlert({
         title: "載入錯誤",
-        message: "請輸入檔案路徑",
+        message: "沒有指定檔案路徑", // 更新訊息以反映 filePath 的來源
         type: "warning",
       });
       return;
@@ -1039,7 +1072,7 @@
       console.error("開啟專案檔案失敗:", err);
       await showAlert({
         title: "開啟錯誤",
-        message: `開啟專案檔案時發生錯誤: ${err}`,
+        message: `開啟 專案檔案時發生錯誤: ${err}`,
         type: "error",
       });
     }
@@ -1707,15 +1740,14 @@
   }
 
   .error-message {
-    margin-top: var(--spacing-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    color: var(--error-700);
-    font-size: 0.8rem;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid var(--error-200);
-    border-radius: var(--radius-small);
-    backdrop-filter: blur(10px);
-    box-shadow: var(--shadow-1);
+    /* Existing styles */
+    background-color: #fff5f5; /* Very light red background */
+    color: #e53e3e; /* Softer red text */
+    border: 1px solid #feb2b2; /* Light red border */
+    padding: 0.5em;
+    border-radius: 4px;
+    margin-top: 0.5em;
+    font-size: 0.9em;
   }
 
   /* 主要內容區域 */

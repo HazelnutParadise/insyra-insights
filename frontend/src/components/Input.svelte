@@ -30,31 +30,31 @@
     cancelText:
       options.cancelText || texts["dialog_defaults.cancel_button"] || "取消",
     inputType: options.inputType || "text",
-  };
-  // 輸入值
+  }; // 輸入值
   let inputValue = "";
   let inputElement: HTMLInputElement;
   let previousVisible = false;
 
-  // $: console.log("Input.svelte: visible=", visible, "previousVisible=", previousVisible, "inputElement=", inputElement);
-
-  // 當對話框變為可見時，焦點和選擇文字的邏輯更新
+  // 當對話框變為可見時，重置輸入值並設置焦點
   $: if (visible && !previousVisible) {
+    // 總是重置為預設值，避免記憶性問題
     inputValue = actualOptions.defaultValue || "";
-    // console.log("Input.svelte: Dialog became visible, inputValue set to:", inputValue);
     tick().then(() => {
       if (inputElement) {
-        // console.log("Input.svelte: Focusing and selecting input.");
         inputElement.focus();
         if (inputValue) {
           inputElement.select();
         }
-      } else {
-        // console.warn("Input.svelte: inputElement not available in tick for focus/select.");
       }
     });
   }
-  $: previousVisible = visible; // 在響應式區塊後更新 previousVisible
+
+  // 當對話框變為不可見時，清空輸入值
+  $: if (!visible && previousVisible) {
+    inputValue = "";
+  }
+
+  $: previousVisible = visible;
 
   // 處理確認按鈕點擊
   function handleConfirm() {

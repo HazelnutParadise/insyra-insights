@@ -715,7 +715,8 @@
                 class="column-index"
                 class:selected={colIndex === selectedCol ||
                   (selectionMode === "column" &&
-                    selectedColRange.has(colIndex))}
+                    selectedColRange.has(colIndex)) ||
+                  (selectionMode === "cell" && colIndex === selectedCol)}
                 on:click={() => handleColumnIndexClick(colIndex)}
                 on:contextmenu={(e) => handleContextMenu(e, "column", colIndex)}
               >
@@ -733,7 +734,10 @@
             {#each tableData.columns as column, colIndex}
               <th
                 class="column-header"
-                class:selected={colIndex === selectedCol}
+                class:selected={colIndex === selectedCol ||
+                  (selectionMode === "column" &&
+                    selectedColRange.has(colIndex)) ||
+                  (selectionMode === "cell" && colIndex === selectedCol)}
                 on:click={() => handleColumnHeaderClick(colIndex, column.name)}
                 on:dblclick={() =>
                   handleColumnHeaderDblClick(colIndex, column.name)}
@@ -780,7 +784,8 @@
                     colIndex === selectedCol}
                   class:selected-col={colIndex === selectedCol ||
                     (selectionMode === "column" &&
-                      selectedColRange.has(colIndex))}
+                      selectedColRange.has(colIndex)) ||
+                    (selectionMode === "cell" && colIndex === selectedCol)}
                   class:selected-row-cell={rowIndex === selectedRow ||
                     (selectionMode === "row" && selectedRowRange.has(rowIndex))}
                   class:nil-value={cellValue === null ||
@@ -1068,8 +1073,7 @@
     cursor: pointer;
     font-size: 0.9rem;
   }
-
-  .cell:hover {
+  .cell:hover:not(.selected-col):not(.selected-row-cell):not(.selected-cell) {
     background: rgba(25, 118, 210, 0.08);
     transform: scale(1.02);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -1086,9 +1090,11 @@
   .selected-col {
     background: linear-gradient(
       180deg,
-      rgba(3, 218, 198, 0.12),
-      rgba(3, 218, 198, 0.06)
+      rgba(3, 218, 198, 0.25),
+      rgba(3, 218, 198, 0.15)
     ) !important;
+    position: relative;
+    z-index: 2;
   }
 
   .selected-row-cell {
@@ -1098,6 +1104,7 @@
       rgba(25, 118, 210, 0.06)
     ) !important;
   }
+
   .selected-cell {
     background: linear-gradient(
       135deg,
@@ -1108,21 +1115,22 @@
     position: relative;
     z-index: 5;
   }
-
-  .selected-row .cell {
+  .selected-row .cell:not(.selected-col) {
     background: linear-gradient(
       90deg,
       rgba(25, 118, 210, 0.08),
       rgba(25, 118, 210, 0.04)
     ) !important;
   }
-
   .selected-col {
     background: linear-gradient(
       180deg,
-      rgba(3, 218, 198, 0.08),
-      rgba(3, 218, 198, 0.04)
+      rgba(3, 218, 198, 0.35),
+      rgba(3, 218, 198, 0.2)
     ) !important;
+    box-shadow: inset 4px 0 0 rgba(3, 218, 198, 0.8) !important;
+    position: relative;
+    z-index: 3;
   }
 
   .selected-row .selected-col {
