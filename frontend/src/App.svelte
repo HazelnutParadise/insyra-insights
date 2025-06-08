@@ -1,6 +1,5 @@
 <script lang="ts">
   import DataTable from "./components/DataTable.svelte";
-  import DataTableByID from "./components/DataTableByID.svelte";
   import {
     LoadTable,
     SaveTable,
@@ -17,6 +16,7 @@
     CreateEmptyTableByID,
     GetTableCount,
     GetTableInfo,
+    GetTableDataByID,
     RemoveTableByID,
   } from "../wailsjs/go/main/App";
   import { onMount } from "svelte";
@@ -53,6 +53,29 @@
 
   // 組件掛載時執行
   onMount(async () => {
+    // 為初始標籤頁創建空白資料表
+    try {
+      const initialTab = tabs[0];
+      if (initialTab) {
+        const actualTableID = await CreateEmptyTableByID(
+          initialTab.id,
+          initialTab.name
+        );
+        if (actualTableID >= 0) {
+          tabs[0].id = actualTableID;
+          isTableLoaded = true;
+          tableKey++; // 觸發表格重新載入
+          console.log(
+            `為初始標籤頁 ${initialTab.name} 創建空白資料表，ID: ${actualTableID}`
+          );
+        } else {
+          console.warn("無法為初始標籤頁創建資料表");
+        }
+      }
+    } catch (err) {
+      console.error("初始化標籤頁資料表時發生錯誤:", err);
+    }
+
     // 獲取命令行傳入的檔案路徑
     try {
       const autoLoadPath = (await GetParamValue("filepath")) || "";
@@ -71,36 +94,68 @@
   async function addNewTab() {
     const newTabName = `Tab ${tabs.length + 1}`;
     const newTabID = tabs.length; // 使用數字ID作為slice索引
-    const newTab: TabInfo = {
-      id: newTabID,
-      name: newTabName,
-      isActive: false,
-    };
-
-    // 設置所有標籤為非活動
-    tabs = tabs.map((tab) => ({ ...tab, isActive: false }));
-    // 添加新標籤並設為活動
-    tabs = [...tabs, { ...newTab, isActive: true }];
-    currentTabIndex = tabs.length - 1;
 
     // 為新標籤頁創建空白資料表
     try {
-      const success = await CreateEmptyTableByID(newTabID, newTabName);
-      if (success >= 0) {
+      const actualTableID = await CreateEmptyTableByID(newTabID, newTabName);
+      if (actualTableID >= 0) {
         // CreateEmptyTableByID 返回 number (tableID)，-1表示失敗
+        const newTab: TabInfo = {
+          id: actualTableID, // 使用實際返回的 table ID
+          name: newTabName,
+          isActive: false,
+        };
+
+        // 設置所有標籤為非活動
+        tabs = tabs.map((tab) => ({ ...tab, isActive: false }));
+        // 添加新標籤並設為活動
+        tabs = [...tabs, { ...newTab, isActive: true }];
+        currentTabIndex = tabs.length - 1;
+
         isTableLoaded = true;
-        console.log(`成功為標籤頁 ${newTabName} 創建空白資料表`);
+
+        // 強制重新載入表格組件
+        tableKey++;
+
+        console.log(
+          `成功為標籤頁 ${newTabName} 創建空白資料表，ID: ${actualTableID}`
+        );
       } else {
         console.error(`為標籤頁 ${newTabName} 創建空白資料表失敗`);
+        alert("創建新標籤頁失敗");
       }
     } catch (err) {
       console.error("創建空白資料表時發生錯誤:", err);
+      alert(`創建新標籤頁時發生錯誤: ${err}`);
     }
   }
 
-  function switchTab(index: number) {
+  async function switchTab(index: number) {
+    // 更新標籤頁狀態
     tabs = tabs.map((tab, i) => ({ ...tab, isActive: i === index }));
     currentTabIndex = index;
+
+    // 檢查切換到的標籤頁是否有有效的資料表
+    const currentTab = tabs[index];
+    if (currentTab && currentTab.id >= 0) {
+      try {
+        // 嘗試獲取表格資料以驗證是否存在
+        const data = await GetTableDataByID(currentTab.id);
+        if (data && (data.rows || data.columns)) {
+          isTableLoaded = true;
+        } else {
+          isTableLoaded = false;
+        }
+      } catch (err) {
+        console.log(`標籤頁 ${index} 的資料表不存在或無效:`, err);
+        isTableLoaded = false;
+      }
+    } else {
+      isTableLoaded = false;
+    }
+
+    // 強制重新載入表格組件
+    tableKey++;
   }
 
   // 功能列操作
@@ -383,7 +438,7 @@
     <!-- 左側表格區域 -->
     <div class="table-area">
       {#if isTableLoaded}
-        <DataTableByID
+        <DataTable
           tableID={tabs[currentTabIndex]?.id ?? 0}
           on:statsUpdate={handleStatsUpdate}
           {tableKey}

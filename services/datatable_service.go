@@ -119,10 +119,18 @@ func (s *DataTableService) UpdateCellValue(tableName string, rowIndex int, colIn
 		return false
 	}
 
+	// 處理特殊值：空字符串轉換為 nil
+	var cellValue interface{}
+	if value == "" {
+		cellValue = nil
+	} else {
+		cellValue = value
+	}
+
 	// 使用 UpdateElement 設置單元格值
 	// 需要將列索引轉換為列字母標識符 (A, B, C, ...)
 	colLetter := indexToLetters(colIndex)
-	dt.UpdateElement(rowIndex, colLetter, value)
+	dt.UpdateElement(rowIndex, colLetter, cellValue)
 	return true
 }
 
@@ -297,6 +305,10 @@ func (s *DataTableService) CreateEmptyTableByID(tableID int, tableName string) i
 	dt := insyra.NewDataTable()
 	dt.SetName(tableName)
 
+	// 創建一個預設的欄位以確保表格有基本結構
+	defaultCol := insyra.NewDataList(nil).SetName("Column1")
+	dt.AppendCols(defaultCol)
+
 	// 如果 tableID 有效，插入到指定位置
 	if tableID >= 0 && tableID < len(s.dataTables) {
 		// 插入到指定位置
@@ -359,10 +371,17 @@ func (s *DataTableService) UpdateCellValueByID(tableID int, rowIndex int, colInd
 	if dt == nil {
 		return false
 	}
+	// 處理特殊值：點和空字串都轉換為 nil
+	var cellValue any
+	if value == "." || value == "" {
+		cellValue = nil
+	} else {
+		cellValue = value
+	}
 
 	// 使用 UpdateElement 設置單元格值
 	colLetter := indexToLetters(colIndex)
-	dt.UpdateElement(rowIndex, colLetter, value)
+	dt.UpdateElement(rowIndex, colLetter, cellValue)
 	return true
 }
 
