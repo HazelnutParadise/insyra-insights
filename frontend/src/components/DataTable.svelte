@@ -35,6 +35,9 @@
   let selectedCol = -1;
   let selectedCellContent = "";
 
+  // 防止雙擊時觸發點擊的標記
+  let doubleClickInProgress = false;
+
   // 編輯輸入元素引用
   let editInput: HTMLInputElement; // 當進入編輯模式時，設置焦點
   $: if (editingState.isEditing && editInput) {
@@ -119,27 +122,70 @@
       總儲存格: totalCells.toString(),
       數值欄數: numericCols.toString(),
     };
-  }
-
-  // 儲存格點擊處理
+  } // 儲存格點擊處理
   function handleCellClick(rowIndex: number, colIndex: number, value: string) {
+    // 如果正在雙擊過程中，忽略點擊事件
+    if (doubleClickInProgress) {
+      return;
+    }
+
+    // 如果正在編輯其他儲存格（不是當前點擊的格子），先結束編輯
+    if (editingState.isEditing) {
+      // 檢查是否點擊的是同一個格子
+      const isSameCell =
+        editingState.rowIndex === rowIndex &&
+        editingState.colIndex === colIndex;
+
+      // 如果是同一個格子，只更新選擇狀態，不更新顯示內容和編輯狀態
+      if (isSameCell) {
+        selectedRow = rowIndex;
+        selectedCol = colIndex;
+        // 不更新 selectedCellContent，保持編輯中的內容
+        return;
+      }
+
+      // 只有在點擊不同格子時才結束編輯
+      handleEditComplete();
+    }
+
+    // 更新選擇狀態和顯示內容
     selectedRow = rowIndex;
     selectedCol = colIndex;
     selectedCellContent = value;
-
-    // 如果正在編輯其他儲存格，先結束編輯
-    if (editingState.isEditing) {
-      handleEditComplete();
-    }
-  }
-
-  // 儲存格雙擊處理 (進入編輯模式)
+  } // 儲存格雙擊處理 (進入編輯模式)
   function handleCellDblClick(
     rowIndex: number,
     colIndex: number,
     colName: string,
     value: string
   ) {
+    // 設置雙擊標記
+    doubleClickInProgress = true;
+
+    // 如果已經在編輯同一個格子，不要重新進入編輯模式
+    if (
+      editingState.isEditing &&
+      editingState.rowIndex === rowIndex &&
+      editingState.colIndex === colIndex
+    ) {
+      // 清除雙擊標記
+      setTimeout(() => {
+        doubleClickInProgress = false;
+      }, 10);
+      return;
+    }
+
+    // 如果正在編輯其他格子，先結束編輯
+    if (editingState.isEditing) {
+      handleEditComplete();
+    }
+
+    // 更新選擇狀態，但不更新顯示內容（避免刷新正在輸入的內容）
+    selectedRow = rowIndex;
+    selectedCol = colIndex;
+    // 不更新 selectedCellContent
+
+    // 進入編輯模式
     editingState = {
       tableID,
       rowIndex,
@@ -148,22 +194,69 @@
       value,
       isEditing: true,
     };
-  }
 
-  // 欄位標題點擊處理
+    // 清除雙擊標記
+    setTimeout(() => {
+      doubleClickInProgress = false;
+    }, 10);
+  } // 欄位標題點擊處理
   function handleColumnHeaderClick(colIndex: number, colName: string) {
+    // 如果正在雙擊過程中，忽略點擊事件
+    if (doubleClickInProgress) {
+      return;
+    }
+
+    // 如果正在編輯其他欄位標題（不是當前點擊的欄位），先結束編輯
+    if (editingState.isEditing) {
+      // 檢查是否點擊的是同一個欄位標題
+      const isSameHeader =
+        editingState.rowIndex === -1 && editingState.colIndex === colIndex;
+
+      // 如果是同一個欄位標題，只更新選擇狀態，不更新顯示內容和編輯狀態
+      if (isSameHeader) {
+        selectedCol = colIndex;
+        selectedRow = -1;
+        // 不更新 selectedCellContent，保持編輯中的內容
+        return;
+      }
+
+      // 只有在點擊不同欄位或不是欄位標題編輯時才結束編輯
+      handleEditComplete();
+    }
+
+    // 更新選擇狀態和顯示內容
     selectedCol = colIndex;
     selectedRow = -1;
     selectedCellContent = colName;
+  } // 欄位標題雙擊處理 (進入編輯模式)
+  function handleColumnHeaderDblClick(colIndex: number, colName: string) {
+    // 設置雙擊標記
+    doubleClickInProgress = true;
 
-    // 如果正在編輯其他儲存格，先結束編輯
+    // 如果已經在編輯同一個欄位標題，不要重新進入編輯模式
+    if (
+      editingState.isEditing &&
+      editingState.rowIndex === -1 &&
+      editingState.colIndex === colIndex
+    ) {
+      // 清除雙擊標記
+      setTimeout(() => {
+        doubleClickInProgress = false;
+      }, 10);
+      return;
+    }
+
+    // 如果正在編輯其他元素，先結束編輯
     if (editingState.isEditing) {
       handleEditComplete();
     }
-  }
 
-  // 欄位標題雙擊處理 (進入編輯模式)
-  function handleColumnHeaderDblClick(colIndex: number, colName: string) {
+    // 更新選擇狀態，但不更新顯示內容（避免刷新正在輸入的內容）
+    selectedCol = colIndex;
+    selectedRow = -1;
+    // 不更新 selectedCellContent
+
+    // 進入編輯模式
     editingState = {
       tableID,
       rowIndex: -1,
@@ -172,6 +265,11 @@
       value: colName,
       isEditing: true,
     };
+
+    // 清除雙擊標記
+    setTimeout(() => {
+      doubleClickInProgress = false;
+    }, 10);
   }
   // 轉換 nil 值為前端顯示格式
   function formatCellValue(value: any): string {
@@ -328,6 +426,7 @@
                   class:selected-cell={rowIndex === selectedRow &&
                     colIndex === selectedCol}
                   class:selected-col={colIndex === selectedCol}
+                  class:selected-row-cell={rowIndex === selectedRow}
                   class:nil-value={cellValue === null ||
                     cellValue === undefined}
                   on:click={() =>
@@ -488,18 +587,37 @@
   .row-header.selected {
     background-color: #c8e6c9;
   }
-
   .selected-row {
-    background-color: rgba(200, 230, 201, 0.3);
+    background-color: rgba(200, 230, 201, 0.3) !important;
   }
 
   .selected-col {
-    background-color: rgba(200, 230, 201, 0.3);
+    background-color: rgba(200, 230, 201, 0.3) !important;
   }
 
+  .selected-row-cell {
+    background-color: rgba(200, 230, 201, 0.3) !important;
+  }
   .selected-cell {
-    background-color: rgba(200, 230, 201, 0.6);
-    border: 2px solid #7b1fa2 !important;
+    background-color: rgba(123, 31, 162, 0.15) !important; /* 更淡的紫色背景 */
+    border: 2px solid rgb(94, 23, 125) !important; /* 更淡的紫色邊框 */
+    box-sizing: border-box;
+  }
+
+  /* 確保選中的行中所有儲存格都高亮 */
+  .selected-row .cell {
+    background-color: rgba(200, 230, 201, 0.3) !important;
+  }
+
+  /* 確保選中的欄中所有儲存格都高亮 */
+  .selected-col {
+    background-color: rgba(200, 230, 201, 0.3) !important;
+  }
+
+  /* 被選中的儲存格具有最高優先級 - 更淡的紫色背景 */
+  .selected-row .selected-col {
+    background-color: rgba(123, 31, 162, 0.15) !important; /* 更淡的紫色背景 */
+    border: 2px solid rgba(123, 31, 162, 0.5) !important; /* 更淡的紫色邊框 */
     box-sizing: border-box;
   }
 
