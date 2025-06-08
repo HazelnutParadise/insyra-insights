@@ -32,21 +32,49 @@
     type: options.type || "info",
     inputType: options.inputType || "text",
   };
-
   // 輸入值
   let inputValue = "";
-  // 當組件顯示時，重置輸入值為默認值
-  $: if (visible) {
-    inputValue = actualOptions.defaultValue || "";
+  let inputElement: HTMLInputElement;
+
+  // 當組件顯示時，重置輸入值為默認值並設置焦點的邏輯更新
+  let previousVisible = false; // 用於追蹤 visible 的先前狀態
+  $: {
+    if (visible && !previousVisible) {
+      // 對話框剛變為可見
+      inputValue = actualOptions.defaultValue || "";
+      console.log(
+        "Input.svelte: Dialog became visible, inputValue set to:",
+        inputValue
+      );
+      // 使用 setTimeout 確保 DOM 更新後再設置焦點和選擇文字
+      setTimeout(() => {
+        if (inputElement) {
+          console.log("Input.svelte: Focusing and selecting input.");
+          inputElement.focus();
+          // 只有當 inputValue 有內容時才選擇文字
+          if (inputValue) {
+            inputElement.select();
+          }
+        } else {
+          console.warn(
+            "Input.svelte: inputElement not available in setTimeout for focus/select."
+          );
+        }
+      }, 100); // 短延遲以允許 DOM 更新
+    }
+    // 為下一個週期更新 previousVisible
+    previousVisible = visible;
   }
 
   // 處理確認按鈕點擊
   function handleConfirm() {
+    console.log("Input 組件 - 確認按鈕點擊，inputValue:", inputValue);
     dispatch("close", { action: "confirm", result: inputValue });
   }
 
   // 處理取消按鈕點擊
   function handleCancel() {
+    console.log("Input 組件 - 取消按鈕點擊");
     dispatch("close", { action: "cancel", result: null });
   }
   // 處理背景點擊（已禁用，不允許點擊背景關閉）
@@ -54,12 +82,15 @@
     // 不執行任何操作，禁止點擊背景關閉對話框
   }
 
-  // 處理 ESC 鍵（等同於取消）
+  // 處理 ESC 鍵（等同於取消）和 Enter 鍵（等同於確認，除非焦點在輸入框）
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       handleCancel();
     } else if (event.key === "Enter") {
-      handleConfirm();
+      // 允許在整個對話框上按 Enter 確認，除非焦點在輸入框內（由 inputElement 的 keydown 事件處理）
+      if (document.activeElement !== inputElement) {
+        handleConfirm();
+      }
     }
   }
 
@@ -123,7 +154,9 @@
             class="input-field"
             placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
+            bind:this={inputElement}
             on:keydown={handleInputKeydown}
+            autofocus
           />
         {:else if actualOptions.inputType === "email"}
           <input
@@ -131,7 +164,9 @@
             class="input-field"
             placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
+            bind:this={inputElement}
             on:keydown={handleInputKeydown}
+            autofocus
           />
         {:else if actualOptions.inputType === "number"}
           <input
@@ -139,7 +174,9 @@
             class="input-field"
             placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
+            bind:this={inputElement}
             on:keydown={handleInputKeydown}
+            autofocus
           />
         {:else}
           <input
@@ -147,7 +184,9 @@
             class="input-field"
             placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
+            bind:this={inputElement}
             on:keydown={handleInputKeydown}
+            autofocus
           />
         {/if}
       </div>

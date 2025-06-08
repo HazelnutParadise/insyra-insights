@@ -13,7 +13,19 @@
     "import_json": "匯入 JSON 檔案",
     "import_sqlite": "匯入 SQLite 資料庫",
     "start_analysis": "開始新的分析專案",
-    "today_is": "今天是"
+    "today_is": "今天是",
+    "open_csv": "開啟 CSV 檔案",
+    "open_csv_desc": "從 CSV 檔案匯入資料",
+    "open_json": "開啟 JSON 檔案",
+    "open_json_desc": "從 JSON 檔案匯入資料",
+    "open_sqlite": "開啟 SQLite 資料庫",
+    "open_sqlite_desc": "連接到 SQLite 資料庫",
+    "open_project": "開啟專案檔案",
+    "open_project_desc": "開啟 .insa 專案檔案",
+    "new_project": "建立空白專案",
+    "new_project_desc": "開始一個新的空白專案",
+    "recent_files": "最近使用的檔案",
+    "no_recent_files": "尚無最近使用的檔案"
   },
   "messages": {
     "select_file": "選擇檔案...",

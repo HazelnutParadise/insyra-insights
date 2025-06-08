@@ -1,4 +1,4 @@
-module insyra-insights-wails
+module insyra-insights
 
 go 1.23.0
 

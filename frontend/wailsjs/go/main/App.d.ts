@@ -29,6 +29,8 @@ export function GetCurrentProjectPath():Promise<string>;
 
 export function GetParamValue(arg1:string):Promise<string>;
 
+export function GetSQLiteTables(arg1:string):Promise<Array<string>>;
+
 export function GetTableCount():Promise<number>;
 
 export function GetTableData(arg1:string):Promise<Record<string, any>>;
@@ -50,6 +52,14 @@ export function LoadTable(arg1:string,arg2:string):Promise<boolean>;
 export function LoadTableByID(arg1:number,arg2:string,arg3:string):Promise<number>;
 
 export function MarkAsSaved():Promise<void>;
+
+export function OpenCSVFile(arg1:string):Promise<number>;
+
+export function OpenFileDialog(arg1:string):Promise<string>;
+
+export function OpenJSONFile(arg1:string):Promise<number>;
+
+export function OpenSQLiteFile(arg1:string,arg2:string):Promise<number>;
 
 export function RemoveTable(arg1:string):Promise<boolean>;
 

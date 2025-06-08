@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 
 	"slices"
@@ -220,19 +221,8 @@ func (s *DataTableService) AddCalculatedColumn(tableName string, columnName stri
 	if dt == nil {
 		return false
 	}
-
-	// TODO: 實現 CCL 表達式解析和計算
-	// 目前先創建一個空的計算欄位
-	rowCount, _ := dt.Size()
-
-	// 創建計算結果欄位，暫時填充公式字符串
-	newData := make([]any, rowCount)
-	for i := range newData {
-		newData[i] = formula // 暫時顯示公式，實際應該計算結果
-	}
-
-	newCol := insyra.NewDataList(newData...).SetName(columnName)
-	dt.AppendCols(newCol)
+	dt.AddColUsingCCL(columnName, formula)
+	// todo: 處理錯誤
 	return true
 }
 
@@ -629,4 +619,60 @@ func (s *DataTableService) GetCurrentProjectPath() string {
 // MarkAsModified 標記專案有變更（在修改資料時調用）
 func (s *DataTableService) MarkAsModified() {
 	projectState.hasUnsavedChanges = true
+}
+
+// ===== 檔案開啟功能 =====
+
+// OpenCSVFile 開啟CSV檔案並創建新的資料表
+func (s *DataTableService) OpenCSVFile(filePath string) int {
+	// TODO: 實現CSV檔案載入功能
+	// 1. 讀取CSV檔案
+	// 2. 解析CSV格式
+	// 3. 創建新的資料表
+	// 4. 設定表格名稱
+	// 5. 返回新表格的ID
+	return -1
+}
+
+// OpenJSONFile 開啟JSON檔案並創建新的資料表
+func (s *DataTableService) OpenJSONFile(filePath string) int {
+	// TODO: 實現JSON檔案載入功能
+	// 1. 讀取JSON檔案
+	// 2. 解析JSON格式（支援陣列格式和物件格式）
+	// 3. 創建新的資料表
+	// 4. 設定表格名稱和欄位
+	// 5. 返回新表格的ID
+	return -1
+}
+
+// OpenSQLiteFile 開啟SQLite檔案中的指定表格
+func (s *DataTableService) OpenSQLiteFile(filePath string, tableName string) int {
+	// TODO: 實現SQLite檔案載入功能
+	// 1. 連接SQLite資料庫
+	// 2. 查詢指定表格的結構和資料
+	// 3. 創建新的資料表
+	// 4. 設定表格名稱和欄位
+	// 5. 載入所有資料行
+	// 6. 返回新表格的ID
+	return -1
+}
+
+// GetSQLiteTables 取得SQLite檔案中的表格列表
+func (s *DataTableService) GetSQLiteTables(filePath string) []string {
+	// TODO: 實現SQLite表格列表功能
+	// 1. 連接SQLite資料庫
+	// 2. 查詢sqlite_master表格
+	// 3. 取得所有用戶定義的表格名稱
+	// 4. 返回表格名稱列表
+	return []string{}
+}
+
+// OpenFileDialog 開啟檔案選擇對話框
+func (s *DataTableService) OpenFileDialog(ctx context.Context, filters string) string {
+	// TODO: 實現檔案選擇對話框功能
+	// 1. 使用Wails runtime.OpenFileDialog
+	// 2. 根據filters參數設定檔案過濾器
+	// 3. 顯示原生檔案選擇對話框
+	// 4. 返回使用者選擇的檔案路徑
+	return ""
 }

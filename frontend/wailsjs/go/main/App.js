@@ -58,6 +58,10 @@ export function GetParamValue(arg1) {
   return window['go']['main']['App']['GetParamValue'](arg1);
 }
 
+export function GetSQLiteTables(arg1) {
+  return window['go']['main']['App']['GetSQLiteTables'](arg1);
+}
+
 export function GetTableCount() {
   return window['go']['main']['App']['GetTableCount']();
 }
@@ -100,6 +104,22 @@ export function LoadTableByID(arg1, arg2, arg3) {
 
 export function MarkAsSaved() {
   return window['go']['main']['App']['MarkAsSaved']();
+}
+
+export function OpenCSVFile(arg1) {
+  return window['go']['main']['App']['OpenCSVFile'](arg1);
+}
+
+export function OpenFileDialog(arg1) {
+  return window['go']['main']['App']['OpenFileDialog'](arg1);
+}
+
+export function OpenJSONFile(arg1) {
+  return window['go']['main']['App']['OpenJSONFile'](arg1);
+}
+
+export function OpenSQLiteFile(arg1, arg2) {
+  return window['go']['main']['App']['OpenSQLiteFile'](arg1, arg2);
 }
 
 export function RemoveTable(arg1) {

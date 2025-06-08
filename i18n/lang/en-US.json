@@ -13,7 +13,19 @@
     "import_json": "Import JSON File",
     "import_sqlite": "Import SQLite Database",
     "start_analysis": "Start New Analysis Project",
-    "today_is": "Today is"
+    "today_is": "Today is",
+    "open_csv": "Open CSV File",
+    "open_csv_desc": "Import data from CSV file",
+    "open_json": "Open JSON File",
+    "open_json_desc": "Import data from JSON file",
+    "open_sqlite": "Open SQLite Database",
+    "open_sqlite_desc": "Connect to SQLite database",
+    "open_project": "Open Project File",
+    "open_project_desc": "Open .insa project file",
+    "new_project": "Create Blank Project",
+    "new_project_desc": "Start a new blank project",
+    "recent_files": "Recent Files",
+    "no_recent_files": "No recent files"
   },
   "messages": {
     "select_file": "Select file...",

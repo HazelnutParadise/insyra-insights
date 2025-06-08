@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"insyra-insights-wails/i18n"
-	"insyra-insights-wails/services"
+	"insyra-insights/config"
+	"insyra-insights/i18n"
+	"insyra-insights/services"
+	"log"
 )
 
 // App struct
@@ -24,6 +26,18 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// 載入設定檔
+	if err := config.Load(); err != nil {
+		log.Printf("載入設定檔失敗: %v", err)
+	}
+
+	// 根據設定設置語言
+	language := config.Get(config.Language)
+	if language != "" {
+		i18n.SetLanguage(language)
+		log.Printf("設定語言為: %s", language)
+	}
 }
 
 // I18n 相關方法
@@ -36,11 +50,15 @@ func (a *App) GetText(key string) string {
 // SetLanguage 設定語言
 func (a *App) SetLanguage(lang string) {
 	i18n.SetLanguage(lang)
+	config.Set(config.Language, lang)
+	if err := config.Save(); err != nil {
+		log.Printf("儲存語言設定失敗: %v", err)
+	}
 }
 
 // GetCurrentLanguage 獲取當前語言
 func (a *App) GetCurrentLanguage() string {
-	return "zh-TW" // 預設為繁體中文
+	return config.Get(config.Language)
 }
 
 // GetParamValue 獲取命令行參數值
@@ -228,4 +246,31 @@ func (a *App) MarkAsSaved() {
 // GetCurrentProjectPath 獲取當前專案檔案路徑
 func (a *App) GetCurrentProjectPath() string {
 	return a.dataService.GetCurrentProjectPath()
+}
+
+// ===== 檔案開啟功能 =====
+
+// OpenCSVFile 開啟CSV檔案
+func (a *App) OpenCSVFile(filePath string) int {
+	return a.dataService.OpenCSVFile(filePath)
+}
+
+// OpenJSONFile 開啟JSON檔案
+func (a *App) OpenJSONFile(filePath string) int {
+	return a.dataService.OpenJSONFile(filePath)
+}
+
+// OpenSQLiteFile 開啟SQLite檔案
+func (a *App) OpenSQLiteFile(filePath string, tableName string) int {
+	return a.dataService.OpenSQLiteFile(filePath, tableName)
+}
+
+// GetSQLiteTables 取得SQLite檔案中的表格列表
+func (a *App) GetSQLiteTables(filePath string) []string {
+	return a.dataService.GetSQLiteTables(filePath)
+}
+
+// OpenFileDialog 開啟檔案選擇對話框
+func (a *App) OpenFileDialog(filters string) string {
+	return a.dataService.OpenFileDialog(a.ctx, filters)
 }

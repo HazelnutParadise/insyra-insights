@@ -3,6 +3,7 @@
   import Alert from "./components/Alert.svelte";
   import Confirm from "./components/Confirm.svelte";
   import Input from "./components/Input.svelte";
+  import WelcomePage from "./components/WelcomePage.svelte";
   import type { TableStats } from "./types/datatable";
   import {
     LoadTable,
@@ -37,6 +38,12 @@
     ExportTableAsCSV,
     ExportTableAsJSON,
     ExportTableAsExcel,
+    // 檔案開啟功能
+    OpenCSVFile,
+    OpenJSONFile,
+    OpenSQLiteFile,
+    GetSQLiteTables,
+    OpenFileDialog,
   } from "../wailsjs/go/main/App";
   import { onMount } from "svelte";
   import { GetParamValue } from "../wailsjs/go/main/App";
@@ -65,6 +72,9 @@
   let isTableLoaded: boolean = false;
   let filePath: string = "";
   let tableKey = 0; // 用於強制重新載入表格組件
+
+  // 歡迎頁面狀態
+  let showWelcomePage = true;
 
   // 標籤頁計數器
   let tabCounter = 1; // 從1開始，因為已有一個 "Table 1"
@@ -413,6 +423,7 @@
       confirmText: texts["dialogs.add_variable.confirm"] || "新增",
       cancelText: texts["dialogs.add_variable.cancel"] || "取消",
     });
+    console.log("showInput 返回值:", columnName);
     if (columnName) {
       const activeTableID = tabs[currentTabIndex]?.id ?? 0;
       console.log("正在調用 AddColumnByID，參數:", {
@@ -851,158 +862,433 @@
     event.stopPropagation();
     startEditingTabName(index);
   }
+
+  // 歡迎頁面事件處理
+  async function handleWelcomeAction(event: CustomEvent) {
+    const { type } = event.detail;
+
+    try {
+      switch (type) {
+        case "open_csv":
+          await handleOpenCSV();
+          break;
+        case "open_json":
+          await handleOpenJSON();
+          break;
+        case "open_sqlite":
+          await handleOpenSQLite();
+          break;
+        case "open_project":
+          await handleOpenProject();
+          break;
+        case "new_project":
+          await handleNewProject();
+          break;
+        default:
+          console.warn("未知的歡迎頁面操作:", type);
+      }
+    } catch (err) {
+      console.error("處理歡迎頁面操作時發生錯誤:", err);
+      await showAlert({
+        title: "操作失敗",
+        message: `執行操作時發生錯誤: ${err}`,
+        type: "error",
+      });
+    }
+  }
+
+  // 開啟 CSV 檔案
+  async function handleOpenCSV() {
+    try {
+      const filePath = await OpenFileDialog("CSV 檔案 (*.csv)|*.csv");
+      if (filePath) {
+        const tableId = await OpenCSVFile(filePath);
+        if (tableId >= 0) {
+          // 成功開啟，隱藏歡迎頁面
+          showWelcomePage = false;
+          // 創建新標籤頁
+          await createTabFromFile(filePath, tableId, "csv");
+        } else {
+          await showAlert({
+            title: "開啟失敗",
+            message: "無法開啟 CSV 檔案",
+            type: "error",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("開啟 CSV 檔案失敗:", err);
+      await showAlert({
+        title: "開啟錯誤",
+        message: `開啟 CSV 檔案時發生錯誤: ${err}`,
+        type: "error",
+      });
+    }
+  }
+
+  // 開啟 JSON 檔案
+  async function handleOpenJSON() {
+    try {
+      const filePath = await OpenFileDialog("JSON 檔案 (*.json)|*.json");
+      if (filePath) {
+        const tableId = await OpenJSONFile(filePath);
+        if (tableId >= 0) {
+          // 成功開啟，隱藏歡迎頁面
+          showWelcomePage = false;
+          // 創建新標籤頁
+          await createTabFromFile(filePath, tableId, "json");
+        } else {
+          await showAlert({
+            title: "開啟失敗",
+            message: "無法開啟 JSON 檔案",
+            type: "error",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("開啟 JSON 檔案失敗:", err);
+      await showAlert({
+        title: "開啟錯誤",
+        message: `開啟 JSON 檔案時發生錯誤: ${err}`,
+        type: "error",
+      });
+    }
+  }
+
+  // 開啟 SQLite 檔案
+  async function handleOpenSQLite() {
+    try {
+      const filePath = await OpenFileDialog(
+        "SQLite 檔案 (*.db;*.sqlite;*.sqlite3)|*.db;*.sqlite;*.sqlite3"
+      );
+      if (filePath) {
+        // 首先獲取表格列表
+        const tables = await GetSQLiteTables(filePath);
+        if (tables && tables.length > 0) {
+          // 如果有多個表格，讓用戶選擇
+          let selectedTable = tables[0]; // 預設選擇第一個
+
+          if (tables.length > 1) {
+            // 顯示表格選擇對話框
+            const tableList = tables.join("\n");
+            const selected = await showInput({
+              title: "選擇資料表",
+              message: `發現多個資料表，請輸入要開啟的表格名稱：\n\n可用的表格：\n${tableList}`,
+              placeholder: tables[0],
+              defaultValue: tables[0],
+            });
+
+            if (selected && tables.includes(selected)) {
+              selectedTable = selected;
+            } else if (!selected) {
+              return; // 用戶取消
+            }
+          }
+
+          const tableId = await OpenSQLiteFile(filePath, selectedTable);
+          if (tableId >= 0) {
+            // 成功開啟，隱藏歡迎頁面
+            showWelcomePage = false;
+            // 創建新標籤頁
+            await createTabFromFile(filePath, tableId, "sqlite", selectedTable);
+          } else {
+            await showAlert({
+              title: "開啟失敗",
+              message: `無法開啟 SQLite 資料表: ${selectedTable}`,
+              type: "error",
+            });
+          }
+        } else {
+          await showAlert({
+            title: "開啟失敗",
+            message: "此 SQLite 檔案中沒有找到資料表",
+            type: "error",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("開啟 SQLite 檔案失敗:", err);
+      await showAlert({
+        title: "開啟錯誤",
+        message: `開啟 SQLite 檔案時發生錯誤: ${err}`,
+        type: "error",
+      });
+    }
+  }
+
+  // 開啟專案檔案
+  async function handleOpenProject() {
+    try {
+      const filePath = await OpenFileDialog("Insyra 專案檔案 (*.insa)|*.insa");
+      if (filePath) {
+        const success = await LoadProject(filePath);
+        if (success) {
+          // 成功開啟，隱藏歡迎頁面
+          showWelcomePage = false;
+          // 重新載入所有標籤頁
+          await refreshAllTabs();
+        } else {
+          await showAlert({
+            title: "開啟失敗",
+            message: "無法開啟專案檔案",
+            type: "error",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("開啟專案檔案失敗:", err);
+      await showAlert({
+        title: "開啟錯誤",
+        message: `開啟專案檔案時發生錯誤: ${err}`,
+        type: "error",
+      });
+    }
+  }
+
+  // 建立新專案
+  async function handleNewProject() {
+    console.log("處理建立新專案");
+    // 隱藏歡迎頁面，進入空白專案
+    showWelcomePage = false;
+    console.log("歡迎頁面已關閉");
+
+    // 重設所有狀態
+    tabs = [{ id: 0, name: "Table 1", isActive: true }];
+    currentTabIndex = 0;
+    tabCounter = 1;
+
+    // 創建空白資料表
+    try {
+      const actualTableID = await CreateEmptyTableByID(0, "Table 1");
+      if (actualTableID >= 0) {
+        tabs[0].id = actualTableID;
+        isTableLoaded = true;
+        tableKey++;
+        console.log(`為新專案創建空白資料表，ID: ${actualTableID}`);
+      } else {
+        console.warn("為新專案創建空白資料表失敗");
+      }
+    } catch (err) {
+      console.error("創建新專案時發生錯誤:", err);
+    }
+  }
+
+  // 從檔案創建標籤頁的輔助函數
+  async function createTabFromFile(
+    filePath: string,
+    tableId: number,
+    fileType: string,
+    tableName?: string
+  ) {
+    const fileName = filePath.split("\\").pop()?.split("/").pop() || "Unknown";
+    const tabName = tableName ? `${fileName} - ${tableName}` : fileName;
+
+    // 清空現有標籤頁並創建新的標籤頁
+    tabs = [{ id: tableId, name: tabName, isActive: true }];
+    currentTabIndex = 0;
+    tabCounter = 1;
+    isTableLoaded = true;
+    tableKey++;
+
+    console.log(
+      `從 ${fileType.toUpperCase()} 檔案創建標籤頁: ${tabName}, ID: ${tableId}`
+    );
+  }
+
+  // 重新載入所有標籤頁的輔助函數
+  async function refreshAllTabs() {
+    try {
+      const tableCount = await GetTableCount();
+      tabs = [];
+
+      for (let i = 0; i < tableCount; i++) {
+        const tableInfo = await GetTableInfo(i);
+        if (tableInfo) {
+          tabs.push({
+            id: i,
+            name: tableInfo.name || `Table ${i + 1}`,
+            isActive: i === 0,
+          });
+        }
+      }
+
+      if (tabs.length > 0) {
+        currentTabIndex = 0;
+        isTableLoaded = true;
+        tableKey++;
+      } else {
+        // 如果沒有標籤頁，創建一個空白標籤頁
+        await handleNewProject();
+      }
+    } catch (err) {
+      console.error("重新載入標籤頁失敗:", err);
+      // 創建一個空白標籤頁作為備用
+      await handleNewProject();
+    }
+  }
+
+  // ...existing code...
 </script>
 
 <main>
-  <!-- 標籤列 -->
-  <div class="tab-bar">
-    <div class="tab-row">
-      {#each tabs as tab, index}
-        <div class="tab-container">
-          <button
-            class="tab-button"
-            class:tab-active={tab.isActive}
-            on:click={() => switchTab(index)}
-            on:dblclick={(event) => handleTabDoubleClick(index, event)}
-            on:contextmenu={(event) => handleTabRightClick(index, event)}
-          >
-            {#if editingTabIndex === index}
-              <input
-                bind:this={editInputRef}
-                type="text"
-                class="tab-name-input"
-                bind:value={editingTabName}
-                on:blur={finishEditingTabName}
-                on:keydown={handleTabNameKeydown}
-                placeholder={texts["ui.placeholders.tab_name"] || "標籤名稱"}
-              />
-            {:else}
-              {tab.name}
-            {/if}
-          </button>
-          <button
-            class="tab-close-button"
-            class:disabled={tabs.length <= 1}
-            on:click={(event) => removeTab(index, event)}
-            title="刪除標籤頁"
-          >
-            ×
-          </button>
-        </div>
-      {/each}
-      <button class="tab-add-button" on:click={addNewTab}>+</button>
-    </div>
-  </div>
-
-  <!-- 功能列 -->
-  <div class="function-bar">
-    <div class="function-buttons">
-      <button class="function-button" on:click={addColumn}>
-        {texts["ui.buttons.add_variable"] || "新增變項"}
-      </button>
-      <button class="function-button" on:click={addRow}>
-        {texts["ui.buttons.add_row"] || "新增列"}
-      </button>
+  <!-- 歡迎頁面 -->
+  {#if showWelcomePage}
+    <WelcomePage on:action={handleWelcomeAction} />
+  {:else}
+    <!-- 標籤列 -->
+    <div class="tab-bar">
+      <div class="tab-row">
+        {#each tabs as tab, index}
+          <div class="tab-container">
+            <button
+              class="tab-button"
+              class:tab-active={tab.isActive}
+              on:click={() => switchTab(index)}
+              on:dblclick={(event) => handleTabDoubleClick(index, event)}
+              on:contextmenu={(event) => handleTabRightClick(index, event)}
+            >
+              {#if editingTabIndex === index}
+                <input
+                  bind:this={editInputRef}
+                  type="text"
+                  class="tab-name-input"
+                  bind:value={editingTabName}
+                  on:blur={finishEditingTabName}
+                  on:keydown={handleTabNameKeydown}
+                  placeholder={texts["ui.placeholders.tab_name"] || "標籤名稱"}
+                />
+              {:else}
+                {tab.name}
+              {/if}
+            </button>
+            <button
+              class="tab-close-button"
+              class:disabled={tabs.length <= 1}
+              on:click={(event) => removeTab(index, event)}
+              title="刪除標籤頁"
+            >
+              ×
+            </button>
+          </div>
+        {/each}
+        <button class="tab-add-button" on:click={addNewTab}>+</button>
+      </div>
     </div>
 
-    <!-- 計算變項輸入區域（常駐顯示） -->
-    <div class="column-input">
-      <div class="input-row">
-        <span class="fx-label">fx</span>
-        <input
-          type="text"
-          class="column-name-input"
-          placeholder={texts["ui.placeholders.variable_name"] || "變項名稱"}
-          bind:value={columnNameValue}
-        />
-        <span class="equals">=</span>
-        <input
-          type="text"
-          class="formula-input"
-          placeholder={texts["ui.placeholders.ccl_expression"] || "CCL 表達式"}
-          bind:value={columnFormulaValue}
-        />
-        <button class="confirm-button" on:click={confirmAddColumn}>
-          {texts["ui.buttons.confirm"] || "✓"}
+    <!-- 功能列 -->
+    <div class="function-bar">
+      <div class="function-buttons">
+        <button class="function-button" on:click={addColumn}>
+          {texts["ui.buttons.add_variable"] || "新增變項"}
         </button>
-        <button class="cancel-button" on:click={clearColumnInput}>
-          {texts["ui.buttons.clear"] || "清除"}
+        <button class="function-button" on:click={addRow}>
+          {texts["ui.buttons.add_row"] || "新增列"}
         </button>
       </div>
-      {#if showError}
-        <div class="error-message">{errorMessage}</div>
-      {/if}
-    </div>
-  </div>
 
-  <!-- 主要內容區域 -->
-  <div class="main-content">
-    <!-- 左側表格區域 -->
-    <div class="table-area">
-      {#if isTableLoaded}
-        <DataTable
-          tableID={tabs[currentTabIndex]?.id ?? 0}
-          on:statsUpdate={handleStatsUpdate}
-          {tableKey}
-        />
-      {:else}
-        <div class="table-placeholder">
-          <p>
-            {texts["ui.table.table_placeholder"] || "資料表為空，請新增資料"}
-          </p>
+      <!-- 計算變項輸入區域（常駐顯示） -->
+      <div class="column-input">
+        <div class="input-row">
+          <span class="fx-label">fx</span>
+          <input
+            type="text"
+            class="column-name-input"
+            placeholder={texts["ui.placeholders.variable_name"] || "變項名稱"}
+            bind:value={columnNameValue}
+          />
+          <span class="equals">=</span>
+          <input
+            type="text"
+            class="formula-input"
+            placeholder={texts["ui.placeholders.ccl_expression"] ||
+              "CCL 表達式"}
+            bind:value={columnFormulaValue}
+          />
+          <button class="confirm-button" on:click={confirmAddColumn}>
+            {texts["ui.buttons.confirm"] || "✓"}
+          </button>
+          <button class="cancel-button" on:click={clearColumnInput}>
+            {texts["ui.buttons.clear"] || "清除"}
+          </button>
         </div>
-      {/if}
-    </div>
-
-    <!-- 右側資訊區域 -->
-    <div class="info-area">
-      <div class="info-header">
-        <h3>{texts["ui.stats.basic_statistics"] || "基本統計"}</h3>
-      </div>
-      <div class="stats-content">
-        <div class="stat-item">
-          <span class="stat-label"
-            >{texts["ui.stats.total_rows"] || "總列數"}:</span
-          >
-          <span class="stat-value">{currentStats["total_rows"]}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label"
-            >{texts["ui.stats.total_variables"] || "總變項數"}:</span
-          >
-          <span class="stat-value">{currentStats["total_variables"]}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label"
-            >{texts["ui.stats.total_cells"] || "總儲存格"}:</span
-          >
-          <span class="stat-value">{currentStats["total_cells"]}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label"
-            >{texts["ui.stats.numeric_variables"] || "數值變項數"}:</span
-          >
-          <span class="stat-value">{currentStats["numeric_variables"]}</span>
-        </div>
+        {#if showError}
+          <div class="error-message">{errorMessage}</div>
+        {/if}
       </div>
     </div>
-  </div>
 
-  <!-- 底部工具列 -->
-  <div class="bottom-toolbar">
-    <button class="toolbar-button open-button" on:click={openFile}>
-      {texts["ui.buttons.open_file"] || "開啟專案"}
-    </button>
-    <button class="toolbar-button save-button" on:click={saveProject}>
-      {texts["ui.buttons.save_file"] || "儲存專案"}
-    </button>
-    <button class="toolbar-button save-as-button" on:click={saveProjectAs}>
-      {texts["ui.buttons.save_as"] || "另存新檔"}
-    </button>
-    <button class="toolbar-button export-button" on:click={exportCurrentTable}>
-      {texts["ui.buttons.export_table"] || "匯出資料表"}
-    </button>
-  </div>
+    <!-- 主要內容區域 -->
+    <div class="main-content">
+      <!-- 左側表格區域 -->
+      <div class="table-area">
+        {#if isTableLoaded}
+          <DataTable
+            tableID={tabs[currentTabIndex]?.id ?? 0}
+            on:statsUpdate={handleStatsUpdate}
+            {tableKey}
+          />
+        {:else}
+          <div class="table-placeholder">
+            <p>
+              {texts["ui.table.table_placeholder"] || "資料表為空，請新增資料"}
+            </p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- 右側資訊區域 -->
+      <div class="info-area">
+        <div class="info-header">
+          <h3>{texts["ui.stats.basic_statistics"] || "基本統計"}</h3>
+        </div>
+        <div class="stats-content">
+          <div class="stat-item">
+            <span class="stat-label"
+              >{texts["ui.stats.total_rows"] || "總列數"}:</span
+            >
+            <span class="stat-value">{currentStats["total_rows"]}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label"
+              >{texts["ui.stats.total_variables"] || "總變項數"}:</span
+            >
+            <span class="stat-value">{currentStats["total_variables"]}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label"
+              >{texts["ui.stats.total_cells"] || "總儲存格"}:</span
+            >
+            <span class="stat-value">{currentStats["total_cells"]}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label"
+              >{texts["ui.stats.numeric_variables"] || "數值變項數"}:</span
+            >
+            <span class="stat-value">{currentStats["numeric_variables"]}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部工具列 -->
+    <div class="bottom-toolbar">
+      <button class="toolbar-button open-button" on:click={openFile}>
+        {texts["ui.buttons.open_file"] || "開啟專案"}
+      </button>
+      <button class="toolbar-button save-button" on:click={saveProject}>
+        {texts["ui.buttons.save_file"] || "儲存專案"}
+      </button>
+      <button class="toolbar-button save-as-button" on:click={saveProjectAs}>
+        {texts["ui.buttons.save_as"] || "另存新檔"}
+      </button>
+      <button
+        class="toolbar-button export-button"
+        on:click={exportCurrentTable}
+      >
+        {texts["ui.buttons.export_table"] || "匯出資料表"}
+      </button>
+    </div>
+  {/if}
 </main>
 
 <!-- 對話框組件 -->
@@ -1024,7 +1310,10 @@
   visible={$inputStore.visible}
   options={$inputStore.options}
   {texts}
-  on:close={(e) => closeInput(e.detail.result)}
+  on:close={(e) => {
+    console.log("Input 對話框關閉事件:", e.detail);
+    closeInput(e.detail.result);
+  }}
 />
 
 <style>

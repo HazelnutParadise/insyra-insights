@@ -37,12 +37,6 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// 如果有指定資料檔案路徑，可以在這裡進行預載
-	// if *dataFilePath != "" {
-	// 	fmt.Printf("收到資料檔案路徑: %s\n", *dataFilePath)
-	// 	// 這裡可以預載資料，或者傳遞給前端使用
-	// }
-
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:  "Insyra Insights",
