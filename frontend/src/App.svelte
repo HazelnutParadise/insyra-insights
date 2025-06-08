@@ -58,8 +58,8 @@
   let editingTabName = "";
   let editInputRef: HTMLInputElement | null = null;
 
-  // 計算欄輸入狀態
-  let showColumnInput = false;
+  // 計算欄輸入狀態（常駐顯示）
+  let showColumnInput = true;
   let columnFormulaValue = "";
   let columnNameValue = "";
   let errorMessage = "";
@@ -395,9 +395,7 @@
     }
   }
 
-  function addCalculatedColumn() {
-    showColumnInput = true;
-  }
+  // 移除了 addCalculatedColumn 函數，因為輸入框常駐顯示
 
   async function confirmAddColumn() {
     if (columnNameValue && columnFormulaValue) {
@@ -410,7 +408,7 @@
       if (success) {
         // 重新載入表格數據以顯示新增的計算欄
         await refreshCurrentTable();
-        cancelAddColumn();
+        clearColumnInput();
       } else {
         showError = true;
         errorMessage = "添加計算欄失敗";
@@ -421,8 +419,7 @@
     }
   }
 
-  function cancelAddColumn() {
-    showColumnInput = false;
+  function clearColumnInput() {
     columnFormulaValue = "";
     columnNameValue = "";
     showError = false;
@@ -680,37 +677,32 @@
     <div class="function-buttons">
       <button class="function-button" on:click={addColumn}>新增欄</button>
       <button class="function-button" on:click={addRow}>新增列</button>
-      <button class="function-button" on:click={addCalculatedColumn}
-        >新增計算欄</button
-      >
     </div>
 
-    <!-- 計算欄輸入區域 -->
-    {#if showColumnInput}
-      <div class="column-input">
-        <div class="input-row">
-          <span class="fx-label">fx</span>
-          <input
-            type="text"
-            class="column-name-input"
-            placeholder="名稱"
-            bind:value={columnNameValue}
-          />
-          <span class="equals">=</span>
-          <input
-            type="text"
-            class="formula-input"
-            placeholder="CCL 表達式"
-            bind:value={columnFormulaValue}
-          />
-          <button class="confirm-button" on:click={confirmAddColumn}>✓</button>
-          <button class="cancel-button" on:click={cancelAddColumn}>✕</button>
-        </div>
-        {#if showError}
-          <div class="error-message">{errorMessage}</div>
-        {/if}
+    <!-- 計算欄輸入區域（常駐顯示） -->
+    <div class="column-input">
+      <div class="input-row">
+        <span class="fx-label">fx</span>
+        <input
+          type="text"
+          class="column-name-input"
+          placeholder="名稱"
+          bind:value={columnNameValue}
+        />
+        <span class="equals">=</span>
+        <input
+          type="text"
+          class="formula-input"
+          placeholder="CCL 表達式"
+          bind:value={columnFormulaValue}
+        />
+        <button class="confirm-button" on:click={confirmAddColumn}>✓</button>
+        <button class="cancel-button" on:click={clearColumnInput}>清除</button>
       </div>
-    {/if}
+      {#if showError}
+        <div class="error-message">{errorMessage}</div>
+      {/if}
+    </div>
   </div>
 
   <!-- 主要內容區域 -->
