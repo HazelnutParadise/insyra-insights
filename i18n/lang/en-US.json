@@ -103,7 +103,7 @@
       "tab_name": "Tab Name"
     },
     "defaults": {
-      "new_variable_name": "New Variable"
+      "new_variable_name": "Variable"
     }
   },
   "dialog_defaults": {

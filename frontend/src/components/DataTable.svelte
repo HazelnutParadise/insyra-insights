@@ -176,8 +176,8 @@
   let editInput: HTMLInputElement; // 當進入編輯模式時，設置焦點
   $: if (editingState.isEditing && editInput) {
     setTimeout(() => {
-      editInput.focus();
-      editInput.select();
+      editInput.focus(); // 僅聚焦，不選取文字
+      // editInput.select(); // 暫時移除此行
     }, 0);
   } // 響應式更新選中內容顯示
   $: if (tableData && !editingState.isEditing) {
@@ -461,17 +461,19 @@
     setTimeout(() => {
       doubleClickInProgress = false;
     }, 10);
-  }
-  // 轉換 nil 值為前端顯示格式
+  } // 轉換 nil 值為前端顯示格式
   function formatCellValue(value: any): string {
+    // 後端回傳的 nil 值會是 null
     if (value === null || value === undefined) {
       return ".";
     }
     return String(value);
-  }
-  // 轉換前端輸入為後端格式
+  } // 轉換前端輸入為後端格式
   function parseInputValue(value: string): string {
-    // 直接傳送用戶輸入的值，讓後端決定如何處理
+    // 如果用戶輸入點號，轉換為空字串表示 nil
+    if (value === "." || value.trim() === "") {
+      return "";
+    }
     return value;
   }
 
@@ -513,16 +515,25 @@
     }
   }
 
-  // 編輯內容變更處理
-  function handleEditChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    editingState.value = target.value;
-  }
-  // 編輯時按下 Enter 鍵處理
+  // 編輯時按下鍵處理
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter") {
+      event.preventDefault(); // 僅在 Enter 時阻止預設行為
       handleEditComplete();
+    } else if (event.key === "Escape") {
+      event.preventDefault(); // 僅在 Escape 時阻止預設行為
+      // 取消編輯，恢復原值
+      editingState = {
+        tableID: -1,
+        rowIndex: -1,
+        colIndex: -1,
+        colName: "",
+        value: "",
+        isEditing: false,
+      };
     }
+    // 對於其他按鍵，不再呼叫 event.preventDefault()
+    // 允許瀏覽器處理正常的文字輸入
   }
 
   // 將數字索引轉換為字母索引 (A, B, C, ..., AA, AB, ...)
@@ -731,7 +742,6 @@
                   <input
                     type="text"
                     bind:value={editingState.value}
-                    on:change={handleEditChange}
                     on:keydown={handleKeyDown}
                     on:blur={handleEditComplete}
                     class="editor"
@@ -797,7 +807,6 @@
                     <input
                       type="text"
                       bind:value={editingState.value}
-                      on:change={handleEditChange}
                       on:keydown={handleKeyDown}
                       on:blur={handleEditComplete}
                       class="editor"
@@ -843,155 +852,305 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-family:
+      "Nunito",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      "Open Sans",
+      "Helvetica Neue",
+      sans-serif;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-2);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .loading,
   .error,
   .no-data {
-    padding: 20px;
+    padding: var(--spacing-xl);
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(248, 250, 252, 0.9)
+    );
+    border-radius: var(--radius-large);
+  }
+
+  .loading {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  .loading::before {
+    content: "";
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--primary-light);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 
   .error {
-    color: #d32f2f;
+    color: var(--error-color);
+    font-weight: 500;
   }
 
+  .no-data {
+    color: var(--text-secondary);
+    font-style: italic;
+  }
   .table-wrapper {
     flex: 1;
     overflow: auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    margin: var(--spacing-sm);
+    border-radius: var(--radius-medium);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    position: relative;
   }
+
   .data-table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
-    /* 移除 min-width，讓表格可以超出容器 */
+    background: transparent;
+    min-width: max-content;
   }
 
   th,
   td {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
+    padding: var(--spacing-sm) var(--spacing-md);
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 120px; /* 固定寬度 */
-    min-width: 120px;
-    max-width: 120px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    position: relative;
+    transition: all var(--transition-fast);
   }
+
   .corner-cell {
-    background-color: #f0f0f0;
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
     position: sticky;
     left: 0;
-    z-index: 15; /* 最高層級，確保在其他sticky元素之上 */
+    z-index: 15;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+    border-right: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
 
   .corner-index {
     top: 0;
+    border-radius: var(--radius-medium) 0 0 0;
   }
 
   .corner-header {
-    top: 35px; /* 與索引行高度一致 */
+    top: 40px;
   }
 
   .column-index {
-    background-color: #f8f9fa;
+    background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
     position: sticky;
     top: 0;
     z-index: 12;
-    font-weight: 500;
+    font-weight: 600;
     text-align: center;
-    color: #666;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
-    height: 35px; /* 設定固定高度 */
-    padding: 6px 12px; /* 調整padding */
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    height: 40px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
 
   .column-index.selected {
-    background-color: #c8e6c9;
+    background: linear-gradient(
+      180deg,
+      var(--primary-light),
+      var(--primary-color)
+    );
+    color: var(--text-on-primary);
+    box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3);
+    transform: translateY(-1px);
   }
 
   .column-header {
-    background-color: #e1eeff;
+    background: linear-gradient(
+      180deg,
+      rgba(225, 238, 255, 0.9),
+      rgba(191, 219, 254, 0.8)
+    );
     position: sticky;
-    top: 35px; /* 與索引行高度一致 */
+    top: 40px;
     z-index: 11;
     font-weight: 600;
-    transition: background-color 0.2s;
-    height: 35px; /* 設定固定高度 */
-    padding: 6px 12px; /* 調整padding */
+    height: 40px;
+    color: var(--text-primary);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
 
   .column-header.selected {
-    background-color: #c8e6c9;
+    background: linear-gradient(
+      180deg,
+      var(--secondary-light),
+      var(--secondary-color)
+    );
+    color: var(--text-primary);
+    box-shadow: 0 4px 8px rgba(3, 218, 198, 0.3);
+    transform: translateY(-1px);
   }
+
   .row-header {
-    background-color: #f0f0f0;
+    background: linear-gradient(90deg, #f8fafc, #e2e8f0);
     position: sticky;
     left: 0;
     z-index: 9;
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
-    transition: background-color 0.2s;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+    border-right: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
 
   .row-header.selected {
-    background-color: #c8e6c9;
-  }
-  .selected-row {
-    background-color: rgba(200, 230, 201, 0.3) !important;
-  }
-
-  .selected-col {
-    background-color: rgba(200, 230, 201, 0.3) !important;
-  }
-
-  .selected-row-cell {
-    background-color: rgba(200, 230, 201, 0.3) !important;
-  }
-  .selected-cell {
-    background-color: rgba(123, 31, 162, 0.15) !important; /* 更淡的紫色背景 */
-    border: 2px solid rgb(94, 23, 125) !important; /* 更淡的紫色邊框 */
-    box-sizing: border-box;
-  }
-
-  /* 確保選中的行中所有儲存格都高亮 */
-  .selected-row .cell {
-    background-color: rgba(200, 230, 201, 0.3) !important;
-  }
-
-  /* 確保選中的欄中所有儲存格都高亮 */
-  .selected-col {
-    background-color: rgba(200, 230, 201, 0.3) !important;
-  }
-
-  /* 被選中的儲存格具有最高優先級 - 更淡的紫色背景 */
-  .selected-row .selected-col {
-    background-color: rgba(123, 31, 162, 0.15) !important; /* 更淡的紫色背景 */
-    border: 2px solid rgba(123, 31, 162, 0.5) !important; /* 更淡的紫色邊框 */
-    box-sizing: border-box;
+    background: linear-gradient(
+      90deg,
+      var(--primary-light),
+      var(--primary-color)
+    );
+    color: var(--text-on-primary);
+    box-shadow: 4px 0 8px rgba(25, 118, 210, 0.3);
+    transform: translateX(1px);
   }
 
   .cell {
     position: relative;
-    transition: background-color 0.2s;
+    background: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 0.9rem;
   }
+
   .cell:hover {
-    background-color: #f9f9f9;
+    background: rgba(25, 118, 210, 0.08);
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .selected-row {
+    background: linear-gradient(
+      90deg,
+      rgba(25, 118, 210, 0.12),
+      rgba(25, 118, 210, 0.06)
+    ) !important;
+  }
+
+  .selected-col {
+    background: linear-gradient(
+      180deg,
+      rgba(3, 218, 198, 0.12),
+      rgba(3, 218, 198, 0.06)
+    ) !important;
+  }
+
+  .selected-row-cell {
+    background: linear-gradient(
+      90deg,
+      rgba(25, 118, 210, 0.12),
+      rgba(25, 118, 210, 0.06)
+    ) !important;
+  }
+  .selected-cell {
+    background: linear-gradient(
+      135deg,
+      rgba(25, 118, 210, 0.15),
+      rgba(3, 218, 198, 0.15)
+    ) !important;
+    box-shadow: inset 0 0 0 2px var(--primary-color) !important;
+    position: relative;
+    z-index: 5;
+  }
+
+  .selected-row .cell {
+    background: linear-gradient(
+      90deg,
+      rgba(25, 118, 210, 0.08),
+      rgba(25, 118, 210, 0.04)
+    ) !important;
+  }
+
+  .selected-col {
+    background: linear-gradient(
+      180deg,
+      rgba(3, 218, 198, 0.08),
+      rgba(3, 218, 198, 0.04)
+    ) !important;
+  }
+
+  .selected-row .selected-col {
+    background: linear-gradient(
+      135deg,
+      rgba(25, 118, 210, 0.15),
+      rgba(3, 218, 198, 0.15)
+    ) !important;
+    box-shadow:
+      0 0 0 2px var(--primary-color),
+      0 4px 12px rgba(25, 118, 210, 0.3) !important;
+    border-radius: var(--radius-small) !important;
   }
 
   .nil-value {
-    color: #999;
+    color: var(--text-hint);
     font-style: italic;
-    background-color: #f8f8f8;
+    background: linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.02),
+      rgba(0, 0, 0, 0.01)
+    ) !important;
+  }
+
+  .nil-value::before {
+    content: "∅";
+    opacity: 0.3;
+    margin-right: var(--spacing-xs);
   }
 
   .editor {
@@ -1000,16 +1159,102 @@
     left: 0;
     width: 100%;
     height: 100%;
-    padding: 8px;
-    border: 2px solid #1976d2;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-small);
     box-sizing: border-box;
     outline: none;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+    z-index: 10;
+  }
+
+  .editor:focus {
+    box-shadow:
+      0 0 0 3px rgba(25, 118, 210, 0.2),
+      0 4px 12px rgba(25, 118, 210, 0.4);
   }
 
   .selected-content {
-    padding: 12px;
-    background: #f5f5f5;
-    border-top: 1px solid #ddd;
-    font-size: 0.9rem;
+    padding: var(--spacing-md);
+    background: linear-gradient(
+      135deg,
+      rgba(248, 250, 252, 0.9),
+      rgba(241, 245, 249, 0.8)
+    );
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-radius: 0 0 var(--radius-large) var(--radius-large);
+  }
+
+  .selected-content strong {
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  /* 滾動條樣式 */
+  .table-wrapper::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .table-wrapper::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: var(--radius-medium);
+  }
+
+  .table-wrapper::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      135deg,
+      var(--primary-color),
+      var(--primary-light)
+    );
+    border-radius: var(--radius-medium);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      135deg,
+      var(--primary-dark),
+      var(--primary-color)
+    );
+    background-clip: content-box;
+  }
+
+  .table-wrapper::-webkit-scrollbar-corner {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  /* 響應式設計 */
+  @media (max-width: 768px) {
+    th,
+    td {
+      width: 120px;
+      min-width: 120px;
+      max-width: 120px;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: 0.8rem;
+    }
+
+    .corner-cell,
+    .row-header {
+      width: 50px;
+      min-width: 50px;
+      max-width: 50px;
+    }
+
+    .column-index,
+    .column-header {
+      height: 35px;
+    }
   }
 </style>

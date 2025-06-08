@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount, tick } from "svelte";
   import type { InputOptions } from "../types/dialog";
 
   // 組件屬性
@@ -11,8 +11,8 @@
     defaultValue: "",
     confirmText: "確定",
     cancelText: "取消",
-    type: "info",
     inputType: "text",
+    // type: "info", // type is not used in Material Design for input dialogs
   };
   export let texts: Record<string, string> = {};
 
@@ -29,173 +29,181 @@
       options.confirmText || texts["dialog_defaults.confirm_button"] || "確定",
     cancelText:
       options.cancelText || texts["dialog_defaults.cancel_button"] || "取消",
-    type: options.type || "info",
     inputType: options.inputType || "text",
   };
   // 輸入值
   let inputValue = "";
   let inputElement: HTMLInputElement;
+  let previousVisible = false;
 
-  // 當組件顯示時，重置輸入值為默認值並設置焦點的邏輯更新
-  let previousVisible = false; // 用於追蹤 visible 的先前狀態
-  $: {
-    if (visible && !previousVisible) {
-      // 對話框剛變為可見
-      inputValue = actualOptions.defaultValue || "";
-      console.log(
-        "Input.svelte: Dialog became visible, inputValue set to:",
-        inputValue
-      );
-      // 使用 setTimeout 確保 DOM 更新後再設置焦點和選擇文字
-      setTimeout(() => {
-        if (inputElement) {
-          console.log("Input.svelte: Focusing and selecting input.");
-          inputElement.focus();
-          // 只有當 inputValue 有內容時才選擇文字
-          if (inputValue) {
-            inputElement.select();
-          }
-        } else {
-          console.warn(
-            "Input.svelte: inputElement not available in setTimeout for focus/select."
-          );
+  // $: console.log("Input.svelte: visible=", visible, "previousVisible=", previousVisible, "inputElement=", inputElement);
+
+  // 當對話框變為可見時，焦點和選擇文字的邏輯更新
+  $: if (visible && !previousVisible) {
+    inputValue = actualOptions.defaultValue || "";
+    // console.log("Input.svelte: Dialog became visible, inputValue set to:", inputValue);
+    tick().then(() => {
+      if (inputElement) {
+        // console.log("Input.svelte: Focusing and selecting input.");
+        inputElement.focus();
+        if (inputValue) {
+          inputElement.select();
         }
-      }, 100); // 短延遲以允許 DOM 更新
-    }
-    // 為下一個週期更新 previousVisible
-    previousVisible = visible;
+      } else {
+        // console.warn("Input.svelte: inputElement not available in tick for focus/select.");
+      }
+    });
   }
+  $: previousVisible = visible; // 在響應式區塊後更新 previousVisible
 
   // 處理確認按鈕點擊
   function handleConfirm() {
-    console.log("Input 組件 - 確認按鈕點擊，inputValue:", inputValue);
+    // console.log("Input 組件 - 確認按鈕點擊，inputValue:", inputValue);
     dispatch("close", { action: "confirm", result: inputValue });
   }
 
   // 處理取消按鈕點擊
   function handleCancel() {
-    console.log("Input 組件 - 取消按鈕點擊");
+    // console.log("Input 組件 - 取消按鈕點擊");
     dispatch("close", { action: "cancel", result: null });
   }
-  // 處理背景點擊（已禁用，不允許點擊背景關閉）
+
+  // 處理背景點擊（關閉對話框）
   function handleBackdropClick() {
-    // 不執行任何操作，禁止點擊背景關閉對話框
+    handleCancel(); // Material Design 對話框通常在點擊背景時關閉
   }
 
-  // 處理 ESC 鍵（等同於取消）和 Enter 鍵（等同於確認，除非焦點在輸入框）
+  // 處理 ESC 鍵（等同於取消）和 Enter 鍵（在對話框上按 Enter 也應該確認）
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       handleCancel();
-    } else if (event.key === "Enter") {
-      // 允許在整個對話框上按 Enter 確認，除非焦點在輸入框內（由 inputElement 的 keydown 事件處理）
-      if (document.activeElement !== inputElement) {
-        handleConfirm();
-      }
+    }
+    // 在對話框上（而不是在輸入框內）按 Enter 鍵也應該確認
+    // 輸入元素有自己的 Enter 鍵處理程序
+    if (event.key === "Enter" && event.target !== inputElement) {
+      handleConfirm();
     }
   }
 
   // 處理輸入框的 Enter 鍵
   function handleInputKeydown(event: KeyboardEvent) {
     if (event.key === "Enter") {
+      event.preventDefault(); // 如果在表單中，防止表單提交
       handleConfirm();
-    }
-  }
-
-  // 獲取圖標
-  function getIcon(type: string): string {
-    switch (type) {
-      case "danger":
-        return "⚠️";
-      case "warning":
-        return "⚠️";
-      case "info":
-      default:
-        return "❓";
-    }
-  }
-
-  // 獲取主題類名
-  function getThemeClass(type: string): string {
-    switch (type) {
-      case "danger":
-        return "danger";
-      case "warning":
-        return "warning";
-      case "info":
-      default:
-        return "info";
     }
   }
 </script>
 
 {#if visible}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
     class="input-backdrop"
     on:click={handleBackdropClick}
     on:keydown={handleKeydown}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="input-title"
+    aria-describedby={actualOptions.message ? "input-message" : undefined}
   >
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div
-      class="input-dialog {getThemeClass(actualOptions.type || 'info')}"
-      on:click|stopPropagation
-    >
-      <div class="input-header">
-        <span class="input-icon">{getIcon(actualOptions.type || "info")}</span>
-        <h3 class="input-title">{actualOptions.title}</h3>
-      </div>
-      <div class="input-content">
-        <p class="input-message">{actualOptions.message}</p>
-        {#if actualOptions.inputType === "password"}
-          <input
-            type="password"
-            class="input-field"
-            placeholder={actualOptions.placeholder || ""}
-            bind:value={inputValue}
-            bind:this={inputElement}
-            on:keydown={handleInputKeydown}
-            autofocus
-          />
-        {:else if actualOptions.inputType === "email"}
-          <input
-            type="email"
-            class="input-field"
-            placeholder={actualOptions.placeholder || ""}
-            bind:value={inputValue}
-            bind:this={inputElement}
-            on:keydown={handleInputKeydown}
-            autofocus
-          />
-        {:else if actualOptions.inputType === "number"}
-          <input
-            type="number"
-            class="input-field"
-            placeholder={actualOptions.placeholder || ""}
-            bind:value={inputValue}
-            bind:this={inputElement}
-            on:keydown={handleInputKeydown}
-            autofocus
-          />
-        {:else}
-          <input
-            type="text"
-            class="input-field"
-            placeholder={actualOptions.placeholder || ""}
-            bind:value={inputValue}
-            bind:this={inputElement}
-            on:keydown={handleInputKeydown}
-            autofocus
-          />
+    <div class="input-dialog" on:click|stopPropagation role="document">
+      {#if actualOptions.title}
+        <h2 class="input-title" id="input-title">{actualOptions.title}</h2>
+      {/if}
+
+      <div class="input-content-area">
+        {#if actualOptions.message}
+          <p class="input-message" id="input-message">
+            {actualOptions.message}
+          </p>
         {/if}
+
+        <!-- Material Design Text Field (Simplified) -->
+        <div class="text-field">
+          {#if actualOptions.inputType === "text"}
+            <input
+              type="text"
+              class="input-field-md"
+              placeholder=" "
+              bind:value={inputValue}
+              bind:this={inputElement}
+              on:keydown={handleInputKeydown}
+              aria-label={actualOptions.placeholder ||
+                actualOptions.title ||
+                "Input"}
+              id="input-field-md-unique"
+            />
+          {:else if actualOptions.inputType === "password"}
+            <input
+              type="password"
+              class="input-field-md"
+              placeholder=" "
+              bind:value={inputValue}
+              bind:this={inputElement}
+              on:keydown={handleInputKeydown}
+              aria-label={actualOptions.placeholder ||
+                actualOptions.title ||
+                "Input"}
+              id="input-field-md-unique"
+            />
+          {:else if actualOptions.inputType === "email"}
+            <input
+              type="email"
+              class="input-field-md"
+              placeholder=" "
+              bind:value={inputValue}
+              bind:this={inputElement}
+              on:keydown={handleInputKeydown}
+              aria-label={actualOptions.placeholder ||
+                actualOptions.title ||
+                "Input"}
+              id="input-field-md-unique"
+            />
+          {:else if actualOptions.inputType === "number"}
+            <input
+              type="number"
+              class="input-field-md"
+              placeholder=" "
+              bind:value={inputValue}
+              bind:this={inputElement}
+              on:keydown={handleInputKeydown}
+              aria-label={actualOptions.placeholder ||
+                actualOptions.title ||
+                "Input"}
+              id="input-field-md-unique"
+            />
+          {:else}
+            <!-- Default to text if unknown -->
+            <input
+              type="text"
+              class="input-field-md"
+              placeholder=" "
+              bind:value={inputValue}
+              bind:this={inputElement}
+              on:keydown={handleInputKeydown}
+              aria-label={actualOptions.placeholder ||
+                actualOptions.title ||
+                "Input"}
+              id="input-field-md-unique"
+            />
+          {/if}
+          <label class="input-label-md" for="input-field-md-unique"
+            >{actualOptions.placeholder ||
+              actualOptions.title ||
+              "Input"}</label
+          >
+        </div>
       </div>
 
-      <div class="input-footer">
-        <button class="input-button secondary" on:click={handleCancel}>
+      <div class="input-actions">
+        <button class="input-button text-button" on:click={handleCancel}>
           {actualOptions.cancelText}
         </button>
-        <button class="input-button primary" on:click={handleConfirm}>
+        <button
+          class="input-button text-button primary"
+          on:click={handleConfirm}
+        >
           {actualOptions.confirmText}
         </button>
       </div>
@@ -210,141 +218,185 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.32);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    animation: fadeIn 0.2s ease-out;
+    animation: dialog-fade-in var(--transition-standard) ease-out;
   }
 
   .input-dialog {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    max-width: 450px;
-    width: 90%;
-    max-height: 80vh;
-    overflow: hidden;
-    animation: slideIn 0.2s ease-out;
-  }
-
-  .input-header {
+    background-color: var(--surface-color);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-dialog);
+    min-width: 280px;
+    max-width: 560px;
+    width: calc(100% - 64px);
+    max-height: calc(100% - 64px);
+    overflow-y: auto;
     display: flex;
-    align-items: center;
-    padding: 20px 20px 16px 20px;
-    border-bottom: 1px solid #e0e0e0;
-  }
-
-  .input-icon {
-    font-size: 24px;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    animation: dialog-scale-open var(--transition-standard)
+      cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 24px;
+    box-sizing: border-box;
   }
 
   .input-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
+    font-size: 1.25rem; /* 20sp */
+    font-weight: 500;
+    line-height: 1.6; /* 32sp */
+    color: var(--text-primary);
+    margin: 0 0 20px 0; /* Consistent margin */
+    font-family: "Roboto", "Nunito", sans-serif;
   }
 
-  .input-content {
-    padding: 16px 20px;
+  .input-content-area {
+    margin-bottom: 24px; /* Space before actions */
+    flex-grow: 1;
   }
 
   .input-message {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #666;
+    font-size: 1rem; /* 16sp */
+    line-height: 1.5; /* 24sp */
+    color: var(--text-secondary);
+    margin: 0 0 16px 0; /* Space before input field */
+    font-family: "Roboto", "Nunito", sans-serif;
+  }
+  .input-message:first-child {
+    margin-top: 0;
+  }
+  .input-message:last-child {
+    margin-bottom: 0; /* Remove margin if it's the last element before input */
   }
 
-  .input-field {
+  /* Material Design Text Field Styles (Simplified) */
+  .text-field {
+    position: relative;
+    padding-top: 16px; /* Space for the label to float */
+    margin-bottom: 8px; /* Some space below the field */
+  }
+
+  .input-field-md {
     width: 100%;
-    padding: 12px 16px;
-    border: 2px solid #e0e0e0;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: border-color 0.2s;
-    outline: none;
+    height: 56px; /* Standard height for MD text field */
+    padding: 16px 12px 0; /* Padding for text, top padding for floating label */
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.42); /* Resting line */
+    border-radius: var(--radius-small) var(--radius-small) 0 0; /* Top corners rounded */
+    font-family: "Roboto", "Nunito", sans-serif;
+    font-size: 1rem; /* 16sp */
+    background-color: var(
+      --surface-variant
+    ); /* Light background for the field */
+    color: var(--text-primary);
+    transition:
+      border-bottom-color var(--transition-fast) ease-out,
+      background-color var(--transition-fast) ease-out;
     box-sizing: border-box;
   }
-  .input-field:focus {
-    border-color: #2196f3;
-    outline: none;
+
+  .input-field-md:hover {
+    border-bottom-color: rgba(0, 0, 0, 0.87); /* Darker line on hover */
+    background-color: #ececec; /* Slightly different background on hover */
   }
 
-  .input-footer {
-    padding: 16px 20px 20px 20px;
+  .input-field-md:focus {
+    outline: none;
+    border-bottom: 2px solid var(--primary-color); /* Primary color line on focus */
+    background-color: #e0e0e0; /* Slightly different background on focus */
+  }
+
+  .input-label-md {
+    position: absolute;
+    top: 32px; /* Vertically centered with input text before floating */
+    left: 12px;
+    font-size: 1rem; /* 16sp */
+    color: var(--text-secondary);
+    pointer-events: none;
+    transition:
+      transform var(--transition-fast) ease-out,
+      font-size var(--transition-fast) ease-out,
+      color var(--transition-fast) ease-out;
+    transform-origin: left top;
+  }
+
+  /* Corrected floating label logic: 
+     - Use :focus OR if the input has a value (NOT :placeholder-shown) 
+     - The placeholder attribute on the input itself should be a single space for this to work reliably if no actual placeholder text is desired.
+  */
+  .input-field-md:focus + .input-label-md,
+  .input-field-md:not(:placeholder-shown) + .input-label-md {
+    transform: translateY(-16px) scale(0.75); /* Float label up and shrink */
+    color: var(--primary-color);
+  }
+
+  /* Ensure placeholder is not shown when there is a value, to allow label to float correctly 
+  .input-field-md:not(:placeholder-shown) {
+     No specific style needed here, but :placeholder-shown is key 
+  }
+  */
+
+  .input-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    border-top: 1px solid #e0e0e0;
+    gap: 8px;
+    padding-top: 8px;
   }
 
   .input-button {
-    padding: 8px 16px;
+    padding: 0 8px;
+    min-width: 64px;
+    height: 36px;
     border: none;
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: var(--radius-small);
+    font-family: "Roboto", "Nunito", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: var(--text-button-text-transform);
+    letter-spacing: var(--text-button-letter-spacing);
     cursor: pointer;
-    transition: all 0.2s;
-    min-width: 80px;
+    transition: background-color var(--transition-fast) ease-out;
+    background-color: transparent;
+    color: var(--primary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
   }
 
-  .input-button.secondary {
-    background-color: #f5f5f5;
-    color: #666;
-    border: 1px solid #ddd;
+  .input-button:hover {
+    background-color: rgba(var(--primary-color-rgb), 0.08);
+  }
+  .input-button.text-button:not(.primary) {
+    color: var(--text-secondary);
+  }
+  .input-button.text-button:not(.primary):hover {
+    background-color: rgba(var(--text-primary-rgb, 0, 0, 0), 0.04);
   }
 
-  .input-button.secondary:hover {
-    background-color: #e0e0e0;
+  .input-button:active {
+    background-color: rgba(var(--primary-color-rgb), 0.12);
+  }
+  .input-button.text-button:not(.primary):active {
+    background-color: rgba(var(--text-primary-rgb, 0, 0, 0), 0.08);
   }
 
   .input-button.primary {
-    background-color: #2196f3;
-    color: white;
+    color: var(--primary-color);
   }
 
-  .input-button.primary:hover {
-    background-color: #1976d2;
-  }
-  .input-button.primary:focus,
-  .input-button.secondary:focus {
+  .input-button:focus {
     outline: none;
+    background-color: rgba(var(--primary-color-rgb), 0.12);
   }
-
-  /* 主題變化 */
-  .input-dialog.danger .input-header {
-    border-bottom-color: #f44336;
-  }
-
-  .input-dialog.danger .input-button.primary {
-    background-color: #f44336;
-  }
-
-  .input-dialog.danger .input-button.primary:hover {
-    background-color: #d32f2f;
-  }
-
-  .input-dialog.warning .input-header {
-    border-bottom-color: #ff9800;
-  }
-
-  .input-dialog.warning .input-button.primary {
-    background-color: #ff9800;
-  }
-
-  .input-dialog.warning .input-button.primary:hover {
-    background-color: #f57c00;
+  .input-button.text-button:not(.primary):focus {
+    background-color: rgba(var(--text-primary-rgb, 0, 0, 0), 0.08);
   }
 
   /* 動畫 */
-  @keyframes fadeIn {
+  @keyframes dialog-fade-in {
     from {
       opacity: 0;
     }
@@ -353,14 +405,50 @@
     }
   }
 
-  @keyframes slideIn {
+  @keyframes dialog-scale-open {
     from {
-      transform: translateY(-50px);
       opacity: 0;
+      transform: scale(0.95);
     }
     to {
-      transform: translateY(0);
       opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* 響應式調整 */
+  @media (max-width: 600px) {
+    .input-dialog {
+      width: calc(100% - 32px);
+      max-width: calc(100% - 32px);
+      padding: 20px;
+    }
+    .input-title {
+      font-size: 1.125rem;
+      margin-bottom: 16px;
+    }
+    .input-content-area {
+      margin-bottom: 20px;
+    }
+    .input-message {
+      font-size: 0.9375rem;
+      margin-bottom: 12px;
+    }
+    .text-field {
+      padding-top: 12px;
+    }
+    .input-field-md {
+      height: 52px;
+      padding: 14px 10px 0;
+    }
+    .input-label-md {
+      top: 28px;
+      left: 10px;
+      font-size: 0.9375rem;
+    }
+    .input-field-md:focus + .input-label-md,
+    .input-field-md:not(:placeholder-shown) + .input-label-md {
+      transform: translateY(-14px) scale(0.75);
     }
   }
 </style>

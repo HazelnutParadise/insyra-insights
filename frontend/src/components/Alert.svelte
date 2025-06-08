@@ -110,126 +110,173 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.32); /* Material Design backdrop color */
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    animation: fadeIn 0.2s ease-out;
+    animation: fadeIn var(--transition-duration) ease-out;
   }
 
   .alert-dialog {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    max-width: 400px;
-    width: 90%;
+    background: var(--surface-color); /* Material Design surface color */
+    border-radius: var(
+      --radius-small
+    ); /* Material Design dialogs often have smaller border radius */
+    box-shadow: var(--shadow-dialog); /* Use Material Design shadow */
+    max-width: 420px;
+    width: calc(
+      100% - 2 * var(--spacing-lg)
+    ); /* Ensure some margin on smaller screens */
     max-height: 80vh;
-    overflow: hidden;
-    animation: slideIn 0.2s ease-out;
+    overflow: hidden; /* Content will be scrollable if needed */
+    animation: slideIn var(--transition-duration) cubic-bezier(0, 0, 0.2, 1); /* Material animation curve */
+    display: flex;
+    flex-direction: column;
   }
 
   .alert-header {
     display: flex;
     align-items: center;
-    padding: 20px 20px 16px 20px;
-    border-bottom: 1px solid #e0e0e0;
+    padding: var(--spacing-lg);
+    /* Removed background gradient, Material Design dialogs usually have plain surface color */
   }
 
   .alert-icon {
-    font-size: 24px;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 24px; /* Adjusted icon size */
+    margin-right: var(--spacing-md);
+    color: var(
+      --primary-color
+    ); /* Icon color often matches primary color or is neutral */
+    /* Removed background, border, and animation for a simpler Material look */
   }
 
   .alert-title {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
+    font-size: 1.25rem; /* Material Design title size (20px) */
+    font-weight: 500; /* Material Design title weight */
+    color: var(--text-primary);
+    font-family: var(--font-primary); /* Ensure consistent font */
   }
 
   .alert-content {
-    padding: 16px 20px;
+    padding: 0 var(--spacing-lg) var(--spacing-lg); /* Adjust padding */
+    flex-grow: 1; /* Allow content to take available space */
+    overflow-y: auto; /* Make content scrollable if it overflows */
+    color: var(--text-secondary);
+    font-size: 1rem; /* Material Design body text (16px) */
+    line-height: 1.5;
   }
 
   .alert-message {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #666;
   }
 
   .alert-footer {
-    padding: 16px 20px 20px 20px;
+    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding for Material spec */
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    border-top: 1px solid #e0e0e0;
+    gap: var(--spacing-sm);
+    border-top: 1px solid rgba(0, 0, 0, 0.12); /* Material Design divider */
+    /* Removed background gradient */
   }
 
   .alert-button {
-    padding: 8px 16px;
+    padding: var(--spacing-xs) var(--spacing-sm); /* Material text button padding */
     border: none;
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: var(--radius-small);
+    font-size: 0.875rem; /* Material Design button text (14px) */
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
-    min-width: 80px;
+    transition: background-color var(--transition-fast);
+    min-width: 64px; /* Material Design button min-width */
+    text-transform: var(
+      --text-button-text-transform
+    ); /* Uppercase for Material buttons */
+    letter-spacing: var(--text-button-letter-spacing);
+    background-color: transparent; /* Text buttons are transparent */
+    color: var(--primary-color); /* Text button color */
   }
 
-  .alert-button.primary {
-    background-color: #2196f3;
-    color: white;
-  }
-  .alert-button.primary:hover {
-    background-color: #1976d2;
+  .alert-button:hover {
+    background-color: rgba(
+      var(--primary-color-rgb),
+      0.08
+    ); /* Slight background on hover */
   }
 
-  .alert-button.primary:focus {
+  .alert-button:active {
+    background-color: rgba(
+      var(--primary-color-rgb),
+      0.12
+    ); /* Slightly darker on active */
+  }
+
+  .alert-button:focus {
     outline: none;
+    background-color: rgba(var(--primary-color-rgb), 0.12);
   }
 
-  /* 主題變化 */
-  .alert-dialog.success .alert-header {
-    border-bottom-color: #4caf50;
+  /* Theme variations - simplified for Material Design */
+  /* Icons and specific colors can be adjusted further based on exact MD guidelines for success/warning/error */
+  .alert-dialog.success .alert-icon {
+    color: var(--success-color);
+  }
+  .alert-dialog.success .alert-button {
+    color: var(--success-color);
+  }
+  .alert-dialog.success .alert-button:hover {
+    background-color: rgba(76, 175, 80, 0.08); /* Success color RGB for hover */
+  }
+  .alert-dialog.success .alert-button:active,
+  .alert-dialog.success .alert-button:focus {
+    background-color: rgba(
+      76,
+      175,
+      80,
+      0.12
+    ); /* Success color RGB for active/focus */
   }
 
-  .alert-dialog.success .alert-button.primary {
-    background-color: #4caf50;
+  .alert-dialog.warning .alert-icon {
+    color: var(--warning-color);
+  }
+  .alert-dialog.warning .alert-button {
+    color: var(--warning-color);
+  }
+  .alert-dialog.warning .alert-button:hover {
+    background-color: rgba(255, 152, 0, 0.08); /* Warning color RGB for hover */
+  }
+  .alert-dialog.warning .alert-button:active,
+  .alert-dialog.warning .alert-button:focus {
+    background-color: rgba(
+      255,
+      152,
+      0,
+      0.12
+    ); /* Warning color RGB for active/focus */
   }
 
-  .alert-dialog.success .alert-button.primary:hover {
-    background-color: #388e3c;
+  .alert-dialog.error .alert-icon {
+    color: var(--error-color);
+  }
+  .alert-dialog.error .alert-button {
+    color: var(--error-color);
+  }
+  .alert-dialog.error .alert-button:hover {
+    background-color: rgba(244, 67, 54, 0.08); /* Error color RGB for hover */
+  }
+  .alert-dialog.error .alert-button:active,
+  .alert-dialog.error .alert-button:focus {
+    background-color: rgba(
+      244,
+      67,
+      54,
+      0.12
+    ); /* Error color RGB for active/focus */
   }
 
-  .alert-dialog.warning .alert-header {
-    border-bottom-color: #ff9800;
-  }
-
-  .alert-dialog.warning .alert-button.primary {
-    background-color: #ff9800;
-  }
-
-  .alert-dialog.warning .alert-button.primary:hover {
-    background-color: #f57c00;
-  }
-
-  .alert-dialog.error .alert-header {
-    border-bottom-color: #f44336;
-  }
-
-  .alert-dialog.error .alert-button.primary {
-    background-color: #f44336;
-  }
-
-  .alert-dialog.error .alert-button.primary:hover {
-    background-color: #d32f2f;
-  }
-
-  /* 動畫 */
+  /* Animations remain similar, but ensure Material easing curve */
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -241,12 +288,29 @@
 
   @keyframes slideIn {
     from {
-      transform: translateY(-50px);
       opacity: 0;
+      transform: translateY(30px); /* Material dialogs often slide up */
     }
     to {
-      transform: translateY(0);
       opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Removed iconFloat animation as it's not typical for Material Design dialogs */
+
+  /* Responsive design adjustments */
+  @media (max-width: 480px) {
+    .alert-dialog {
+      margin: var(--spacing-medium);
+      width: calc(100% - 2 * var(--spacing-medium));
+    }
+
+    .alert-header,
+    .alert-content,
+    .alert-footer {
+      padding-left: var(--spacing-medium);
+      padding-right: var(--spacing-medium);
     }
   }
 </style>

@@ -91,41 +91,64 @@
 </script>
 
 <div class="welcome-container">
-  <div class="welcome-content">
-    <!-- 應用程式標題和Logo -->
-    <div class="header">
-      <div class="logo">
-        <img
-          src="/src/assets/images/logo-universal.png"
-          alt="Insyra Insights"
-          class="logo-image"
-        />
-      </div>
+  <!-- 左側品牌區域 -->
+  <div class="brand-section">
+    <div class="logo-area">
+      <img
+        src="/src/assets/images/logo-universal.png"
+        alt="Insyra Insights"
+        class="logo-image"
+      />
       <h1 class="app-title">{appTitle}</h1>
       <p class="app-subtitle">{appSubtitle}</p>
     </div>
+  </div>
 
-    <!-- 歡迎選項 -->
-    <div class="options-grid">
-      {#each options as option}
-        <button
-          class="option-card"
-          on:click={option.action}
-          title={option.description}
-        >
-          <div class="option-icon">{option.icon}</div>
-          <div class="option-content">
-            <h3 class="option-title">{option.title}</h3>
-            <p class="option-description">{option.description}</p>
-          </div>
-        </button>
-      {/each}
+  <!-- 右側操作區域 -->
+  <div class="content-section">
+    <div class="section-header">
+      <h2>開始使用</h2>
     </div>
-    <!-- 最近使用的檔案 -->
-    <div class="recent-files">
+
+    <!-- 建立新專案 -->
+    <div class="action-section">
+      <h3>建立新專案</h3>
+      <button
+        class="action-card primary-action"
+        on:click={() => dispatch("action", { type: "new_project" })}
+      >
+        <div class="action-icon">📄</div>
+        <div class="action-content">
+          <h4>新增空白專案</h4>
+          <p>開始一個新的資料分析專案</p>
+        </div>
+      </button>
+    </div>
+
+    <!-- 開啟資料 -->
+    <div class="action-section">
+      <h3>開啟資料</h3>
+      <div class="actions-grid">
+        {#each options.slice(0, 4) as option}
+          <button
+            class="action-card"
+            on:click={option.action}
+            title={option.description}
+          >
+            <div class="action-icon">{option.icon}</div>
+            <div class="action-content">
+              <h4>{option.title}</h4>
+              <p>{option.description}</p>
+            </div>
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- 最近使用 -->
+    <div class="action-section">
       <h3>{recentFilesTitle}</h3>
-      <div class="recent-list">
-        <!-- 這裡可以添加最近使用的檔案列表 -->
+      <div class="recent-area">
         <div class="no-recent">{noRecentFiles}</div>
       </div>
     </div>
@@ -139,10 +162,9 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+    display: grid;
+    grid-template-columns: 1fr 2fr;
     z-index: 1000;
     font-family:
       "Nunito",
@@ -151,159 +173,353 @@
       "Segoe UI",
       Roboto,
       sans-serif;
+    overflow: hidden;
+    box-sizing: border-box;
   }
-
-  .welcome-content {
-    max-width: 900px;
-    width: 90%;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    padding: 3rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    animation: fadeInUp 0.6s ease-out;
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .header {
+  /* 左側品牌區域 */
+  .brand-section {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    color: white;
+    padding: 3rem 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
-    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
   }
 
-  .logo {
-    margin-bottom: 1rem;
+  .brand-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(
+        circle at 20% 20%,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at 80% 80%,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at 40% 60%,
+        rgba(255, 255, 255, 0.05) 1px,
+        transparent 1px
+      );
+    background-size:
+      100px 100px,
+      80px 80px,
+      120px 120px;
+    animation: float 20s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .logo-area {
+    position: relative;
+    z-index: 1;
   }
 
   .logo-image {
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
     object-fit: contain;
+    margin-bottom: 2rem;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+    animation: logoFloat 6s ease-in-out infinite;
+  }
+
+  @keyframes logoFloat {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   .app-title {
-    font-size: 2.5rem;
+    font-size: 3.5rem;
     font-weight: 700;
-    color: #2d3748;
-    margin: 0 0 0.5rem 0;
+    color: white;
+    margin: 0 0 1rem 0;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
   .app-subtitle {
-    font-size: 1.1rem;
-    color: #718096;
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+    font-weight: 300;
+  }
+
+  /* 右側內容區域 */
+  .content-section {
+    background: #ffffff;
+    padding: 3rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  .section-header {
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 1rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #1f2937;
     margin: 0;
   }
 
-  .options-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  .action-section {
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
-    margin-bottom: 3rem;
   }
 
-  .option-card {
-    background: white;
-    border: 2px solid #e2e8f0;
+  .action-section h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .action-card {
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
     border-radius: 12px;
     padding: 1.5rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     text-align: left;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    font-family: inherit;
+    width: 100%;
   }
 
-  .option-card:hover {
-    border-color: #667eea;
+  .action-card.primary-action {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  .action-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: #3b82f6;
   }
 
-  .option-card:active {
-    transform: translateY(0);
+  .action-card.primary-action:hover {
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
   }
 
-  .option-icon {
+  .actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .action-icon {
     font-size: 2.5rem;
-    margin-right: 1.2rem;
+    margin-right: 1.5rem;
     flex-shrink: 0;
-  }
-
-  .option-content {
-    flex: 1;
-  }
-
-  .option-title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #2d3748;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .option-description {
-    font-size: 0.9rem;
-    color: #718096;
-    margin: 0;
-    line-height: 1.4;
-  }
-
-  .recent-files {
-    border-top: 1px solid #e2e8f0;
-    padding-top: 2rem;
-  }
-
-  .recent-files h3 {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: #2d3748;
-    margin: 0 0 1rem 0;
-  }
-
-  .recent-list {
-    min-height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 12px;
+  }
+
+  .action-card.primary-action .action-icon {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .action-content {
+    flex: 1;
+  }
+
+  .action-content h4 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .action-card.primary-action .action-content h4 {
+    color: white;
+  }
+
+  .action-content p {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .action-card.primary-action .action-content p {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .recent-area {
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 3rem;
+    text-align: center;
   }
 
   .no-recent {
-    color: #a0aec0;
+    color: #9ca3af;
     font-style: italic;
+    font-size: 1.1rem;
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   /* 響應式設計 */
-  @media (max-width: 768px) {
-    .welcome-content {
+  @media (max-width: 1200px) {
+    .welcome-container {
+      grid-template-columns: 1fr 1.8fr;
+    }
+
+    .content-section {
       padding: 2rem;
-      margin: 1rem;
+    }
+
+    .brand-section {
+      padding: 2rem 1.5rem;
+    }
+
+    .app-title {
+      font-size: 3rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .welcome-container {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+
+    .brand-section {
+      padding: 2rem 1rem;
+    }
+
+    .app-title {
+      font-size: 2.5rem;
+    }
+
+    .app-subtitle {
+      font-size: 1.1rem;
+    }
+
+    .logo-image {
+      width: 100px;
+      height: 100px;
+      margin-bottom: 1.5rem;
+    }
+
+    .content-section {
+      padding: 2rem 1rem;
+      gap: 2rem;
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+    }
+
+    .actions-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .action-card {
+      padding: 1.2rem;
+    }
+
+    .action-icon {
+      font-size: 2rem;
+      width: 50px;
+      height: 50px;
+      margin-right: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .brand-section {
+      padding: 1.5rem 1rem;
     }
 
     .app-title {
       font-size: 2rem;
     }
 
-    .options-grid {
-      grid-template-columns: 1fr;
-      gap: 1rem;
+    .app-subtitle {
+      font-size: 1rem;
     }
 
-    .option-card {
-      padding: 1.2rem;
+    .logo-image {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1rem;
     }
 
-    .option-icon {
-      font-size: 2rem;
-      margin-right: 1rem;
+    .content-section {
+      padding: 1.5rem 1rem;
+      gap: 1.5rem;
+    }
+
+    .section-header h2 {
+      font-size: 1.8rem;
+    }
+
+    .action-section h3 {
+      font-size: 1.3rem;
+    }
+
+    .action-card {
+      padding: 1rem;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .action-icon {
+      margin-right: 0;
+      margin-bottom: 1rem;
+    }
+
+    .action-content h4 {
+      font-size: 1.1rem;
+    }
+
+    .action-content p {
+      font-size: 0.9rem;
     }
   }
 </style>

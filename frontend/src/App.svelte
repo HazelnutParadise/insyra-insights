@@ -1171,7 +1171,9 @@
             </button>
           </div>
         {/each}
-        <button class="tab-add-button" on:click={addNewTab}>+</button>
+        <button class="tab-add-button" on:click={addNewTab} tabindex="-1"
+          >+</button
+        >
       </div>
     </div>
 
@@ -1320,8 +1322,20 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-family:
+      "Nunito",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      "Open Sans",
+      "Helvetica Neue",
+      sans-serif;
+    background: var(--background-color);
+    overflow: hidden;
   }
 
   main {
@@ -1329,20 +1343,51 @@
     flex-direction: column;
     height: 100vh;
     width: 100%;
-    background-color: #f5f8ff;
+    background: var(--background-color);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 背景裝飾 */
+  main::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(
+        circle at 20% 20%,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at 80% 80%,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px
+      );
+    background-size:
+      100px 100px,
+      120px 120px;
+    pointer-events: none;
+    z-index: 0;
   }
 
   /* 標籤列樣式 */
   .tab-bar {
-    background-color: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
-    padding: 4px 8px 0 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: var(--spacing-sm) var(--spacing-md) 0;
+    box-shadow: var(--shadow-1);
+    position: relative;
+    z-index: 10;
   }
 
   .tab-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--spacing-xs);
     align-items: center;
   }
 
@@ -1350,191 +1395,327 @@
     position: relative;
     display: flex;
     align-items: center;
+    border-radius: var(--radius-medium) var(--radius-medium) 0 0;
+    overflow: hidden;
   }
 
   .tab-button {
-    padding: 8px 16px;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
-    border-radius: 4px 4px 0 0;
-    font-size: 14px;
+    border-radius: var(--radius-medium) var(--radius-medium) 0 0;
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
-    background-color: rgb(225, 235, 250); /* 淡藍色背景 - 未選中 */
-    color: rgb(0, 90, 180); /* 藍色文字 */
+    transition: all var(--transition-standard);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.7),
+      rgba(248, 250, 252, 0.8)
+    );
+    color: var(--text-secondary);
     margin-bottom: -1px;
-    padding-right: 32px; /* 為刪除按鈕留出空間 */
+    padding-right: var(--spacing-xl);
     position: relative;
-    overflow: visible;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: none;
+    box-shadow: var(--shadow-1);
   }
 
   .tab-button.tab-active {
-    background-color: rgb(235, 250, 235); /* 淡綠色背景 - 選中 */
-    color: rgb(0, 0, 0); /* 黑色文字 */
-    border-bottom: 2px solid rgb(235, 250, 235);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.95),
+      rgba(248, 250, 252, 0.95)
+    );
+    color: var(--text-primary);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .tab-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--primary-color),
+      transparent
+    );
+    opacity: 0;
+    transition: opacity var(--transition-standard);
+  }
+
+  .tab-button.tab-active::before {
+    opacity: 1;
   }
 
   .tab-button:hover {
-    opacity: 0.8;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(248, 250, 252, 0.9)
+    );
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
   }
 
   .tab-close-button {
     position: absolute;
-    right: 4px;
+    right: var(--spacing-xs);
     top: 50%;
     transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border: none;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.1);
-    color: rgb(0, 90, 180);
-    font-size: 16px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
-    line-height: 1;
-    padding: 0;
-    z-index: 10;
+    transition: all var(--transition-fast);
+    opacity: 0.6;
   }
 
   .tab-close-button.disabled {
-    opacity: 0.3;
+    opacity: 0.2;
     cursor: not-allowed;
   }
 
   .tab-close-button:hover {
-    background-color: rgba(255, 0, 0, 0.2);
-    color: rgb(200, 0, 0);
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--error-color);
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
   }
 
   .tab-container:hover .tab-close-button {
-    background-color: rgba(0, 0, 0, 0.15);
+    opacity: 1;
   }
 
   .tab-add-button {
-    padding: 8px 12px;
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: var(--radius-medium);
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
-    background-color: rgb(225, 245, 254); /* 淡藍色背景 */
-    color: rgb(33, 150, 243); /* 藍色文字 */
-    margin-bottom: -1px;
+    background: linear-gradient(
+      135deg,
+      var(--secondary-color),
+      var(--secondary-light)
+    );
+    color: var(--text-primary);
+    transition: all var(--transition-standard);
+    box-shadow: var(--shadow-1);
+    backdrop-filter: blur(10px);
+    outline: none; /* 移除外框 */
   }
 
   .tab-add-button:hover {
-    opacity: 0.8;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+    background: linear-gradient(
+      135deg,
+      var(--secondary-dark),
+      var(--secondary-color)
+    );
+  }
+
+  .tab-add-button:focus,
+  .tab-add-button:active {
+    outline: none; /* 確保在 focus 和 active 狀態下也沒有外框 */
+    box-shadow: var(--shadow-1); /* 維持點擊時的陰影效果，避免預設 focus 樣式 */
   }
 
   /* 功能列樣式 */
   .function-bar {
-    background-color: rgb(63, 81, 181); /* Material Design Indigo 500 */
-    padding: 8px 16px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(
+      135deg,
+      var(--primary-color),
+      var(--primary-dark)
+    );
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: var(--shadow-3);
+    position: relative;
+    z-index: 9;
+  }
+
+  .function-bar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
   }
 
   .function-buttons {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
   }
 
   .function-button {
-    padding: 8px 16px;
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: var(--radius-medium);
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.15); /* 半透明白色背景 */
-    color: rgb(255, 255, 255); /* 白色文字 */
-    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-on-primary);
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .function-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    transition: left 0.5s ease;
   }
 
   .function-button:hover {
-    background-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+  }
+
+  .function-button:hover::before {
+    left: 100%;
   }
 
   /* 計算欄輸入區域 */
   .column-input {
-    margin-top: 8px;
-    padding: 8px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-medium);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .input-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
   }
 
   .fx-label {
-    color: rgb(200, 200, 200);
-    font-size: 14px;
-    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-width: 20px;
+  }
+
+  .column-name-input,
+  .formula-input {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-small);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+    transition: all var(--transition-fast);
   }
 
   .column-name-input {
-    width: 100px;
-    padding: 4px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 14px;
-  }
-
-  .column-name-input::placeholder {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .equals {
-    color: white;
-    font-weight: bold;
+    width: 120px;
+    min-width: 120px;
   }
 
   .formula-input {
     flex: 1;
-    padding: 4px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 14px;
+    min-width: 200px;
   }
 
+  .column-name-input:focus,
+  .formula-input:focus {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  }
+
+  .column-name-input::placeholder,
   .formula-input::placeholder {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .equals {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .confirm-button,
+  .cancel-button {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: none;
+    border-radius: var(--radius-small);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 50px;
   }
 
   .confirm-button {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    background-color: rgb(0, 150, 0);
+    background: linear-gradient(135deg, var(--success-color), #66bb6a);
     color: white;
-    cursor: pointer;
-    font-size: 12px;
   }
 
   .cancel-button {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    background-color: rgb(150, 0, 0);
+    background: linear-gradient(135deg, var(--error-color), #ef5350);
     color: white;
-    cursor: pointer;
-    font-size: 12px;
+  }
+
+  .confirm-button:hover,
+  .cancel-button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
   }
 
   .error-message {
-    margin-top: 4px;
-    padding: 4px 8px;
-    color: rgb(255, 200, 200);
-    font-size: 12px;
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    color: var(--error-700);
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--error-200);
+    border-radius: var(--radius-small);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-1);
   }
 
   /* 主要內容區域 */
@@ -1542,12 +1723,36 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
   }
 
   .table-area {
     flex: 3;
-    background-color: white;
-    overflow: auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .table-area::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
   }
 
   .table-placeholder {
@@ -1555,106 +1760,310 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #757575;
-    font-size: 16px;
+    flex-direction: column;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  .table-placeholder::before {
+    content: "📊";
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
   }
 
   /* 右側資訊區域 */
   .info-area {
     flex: 1;
-    background-color: rgb(245, 248, 255); /* 淡藍灰色 */
-    border-left: 1px solid #e0e0e0;
-    overflow: auto;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .info-area::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
   }
 
   .info-header {
-    padding: 16px;
-    border-bottom: 1px solid #e0e0e0;
+    padding: var(--spacing-lg);
+    background: linear-gradient(
+      135deg,
+      rgba(25, 118, 210, 0.1),
+      rgba(3, 218, 198, 0.1)
+    );
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .info-header h3 {
     margin: 0;
-    font-size: 16px;
-    font-weight: bold;
-    color: rgb(0, 90, 180); /* 藍色 */
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .info-header h3::before {
+    content: "📈";
+    font-size: 1.2rem;
   }
 
   .stats-content {
-    padding: 16px;
+    padding: var(--spacing-lg);
   }
 
   .stat-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    transition: all var(--transition-fast);
+  }
+
+  .stat-item:hover {
+    background: rgba(25, 118, 210, 0.05);
+    margin: 0 calc(-1 * var(--spacing-sm));
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+    border-radius: var(--radius-small);
+  }
+
+  .stat-item:last-child {
+    border-bottom: none;
   }
 
   .stat-label {
-    font-size: 14px;
-    color: #666;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
   }
 
   .stat-value {
-    font-size: 14px;
-    font-weight: bold;
-    color: #333;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(25, 118, 210, 0.1);
+    border-radius: var(--radius-small);
+    min-width: 40px;
+    text-align: center;
   }
 
   /* 底部工具列 */
   .bottom-toolbar {
-    background-color: rgb(180, 220, 255); /* 淡藍紫色背景 */
-    padding: 6px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    padding: var(--spacing-sm);
     display: flex;
-    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
-    border-top: 1px solid rgb(220, 225, 230);
+    gap: var(--spacing-xs);
+    box-shadow: var(--shadow-2);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    z-index: 10;
+  }
+
+  .bottom-toolbar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
   }
 
   .toolbar-button {
     flex: 1;
-    padding: 8px 16px;
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
-    border-radius: 0;
-    font-size: 14px;
+    border-radius: var(--radius-medium);
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
-    margin: 0 3px;
-    transition: all 0.2s;
+    transition: all var(--transition-standard);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .toolbar-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    transition: left 0.5s ease;
+  }
+
+  .toolbar-button:hover::before {
+    left: 100%;
   }
 
   .open-button {
-    background-color: rgb(240, 253, 244); /* 淡綠色背景 */
-    color: rgb(34, 197, 94); /* 綠色文字 */
+    background: linear-gradient(
+      135deg,
+      rgba(76, 175, 80, 0.1),
+      rgba(129, 199, 132, 0.1)
+    );
+    color: var(--success-color);
+    border-color: rgba(76, 175, 80, 0.3);
   }
 
   .save-button {
-    background-color: rgb(239, 246, 255); /* 淡藍色背景 */
-    color: rgb(59, 130, 246); /* 藍色文字 */
+    background: linear-gradient(
+      135deg,
+      rgba(33, 150, 243, 0.1),
+      rgba(100, 181, 246, 0.1)
+    );
+    color: var(--info-color);
+    border-color: rgba(33, 150, 243, 0.3);
   }
 
   .export-button {
-    background-color: rgb(255, 251, 235); /* 淡橙色背景 */
-    color: rgb(245, 158, 11); /* 橙色文字 */
+    background: linear-gradient(
+      135deg,
+      rgba(255, 152, 0, 0.1),
+      rgba(255, 183, 77, 0.1)
+    );
+    color: var(--warning-color);
+    border-color: rgba(255, 152, 0, 0.3);
   }
 
   .toolbar-button:hover {
-    opacity: 0.8;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+  }
+
+  .open-button:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(76, 175, 80, 0.15),
+      rgba(129, 199, 132, 0.15)
+    );
+  }
+
+  .save-button:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(33, 150, 243, 0.15),
+      rgba(100, 181, 246, 0.15)
+    );
+  }
+
+  .export-button:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 152, 0, 0.15),
+      rgba(255, 183, 77, 0.15)
+    );
   }
 
   /* 標籤名稱編輯樣式 */
   .tab-name-input {
-    padding: 4px 8px;
-    border: 1px solid rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.9);
-    color: rgb(0, 0, 0);
-    font-size: 14px;
-    width: 100px;
-    /* 讓輸入框不會隨著標籤寬度變化而變形 */
-    min-width: 100px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid rgba(25, 118, 210, 0.3);
+    border-radius: var(--radius-small);
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    width: 120px;
+    min-width: 120px;
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(10px);
+  }
+
+  .tab-name-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    background: rgba(255, 255, 255, 1);
   }
 
   .tab-name-input::placeholder {
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--text-hint);
+  }
+
+  /* 響應式設計 */
+  @media (max-width: 1024px) {
+    .main-content {
+      flex-direction: column;
+    }
+
+    .info-area {
+      flex: none;
+      height: 200px;
+    }
+
+    .function-buttons {
+      justify-content: center;
+    }
+
+    .input-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .formula-input {
+      min-width: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .tab-row {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+    }
+
+    .function-buttons {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+
+    .function-button {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: 0.8rem;
+    }
+
+    .bottom-toolbar {
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .main-content {
+      padding: var(--spacing-xs);
+      gap: var(--spacing-xs);
+    }
   }
 </style>

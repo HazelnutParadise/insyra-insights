@@ -103,7 +103,7 @@
       "tab_name": "標籤名稱"
     },
     "defaults": {
-      "new_variable_name": "新變項"
+      "new_variable_name": "變項"
     }
   },
   "dialog_defaults": {

@@ -64,7 +64,10 @@
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
       class="context-menu"
-      style="left: {x}px; top: {y}px;"
+      style="left: {Math.min(x, window.innerWidth - 200)}px; top: {Math.min(
+        y,
+        window.innerHeight - 300
+      )}px;"
       on:click|stopPropagation
     >
       {#each currentMenuItems as item}
@@ -101,62 +104,181 @@
 
   .context-menu {
     position: absolute;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 4px 0;
-    min-width: 180px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--blur-heavy));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-4);
+    padding: var(--spacing-extra-small) 0;
+    min-width: 200px;
+    font-family: var(--font-primary);
     font-size: 14px;
     z-index: 1001;
+    animation: contextMenuSlideIn var(--transition-duration) ease-out;
+    overflow: hidden;
   }
+
+  .context-menu::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+  }
+
   .menu-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: var(--spacing-small) var(--spacing-medium);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all var(--transition-duration);
+    position: relative;
+    color: var(--text-primary);
+    margin: 0 var(--spacing-extra-small);
+    border-radius: var(--radius-small);
+  }
+
+  .menu-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    transition: width var(--transition-duration);
+    border-radius: var(--radius-small);
   }
 
   .menu-item:hover {
-    background-color: #f5f5f5;
+    background: linear-gradient(135deg, var(--primary-50), var(--primary-100));
+    color: var(--primary-700);
+    transform: translateX(2px);
+    box-shadow: var(--shadow-1);
+  }
+
+  .menu-item:hover::before {
+    width: 3px;
   }
 
   .menu-item.danger {
-    color: #d32f2f;
+    color: var(--error-600);
+  }
+
+  .menu-item.danger::before {
+    background: linear-gradient(135deg, var(--error-500), var(--error-600));
   }
 
   .menu-item.danger:hover {
-    background-color: #ffebee;
+    background: linear-gradient(135deg, var(--error-50), var(--error-100));
+    color: var(--error-700);
   }
 
   .menu-item.disabled {
-    color: #bbb;
+    color: var(--text-disabled);
     cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .menu-item.disabled:hover {
-    background-color: transparent;
+    background: transparent;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .menu-item.disabled:hover::before {
+    width: 0;
   }
 
   .menu-icon {
-    margin-right: 8px;
+    margin-right: var(--spacing-small);
     font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-small);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(var(--blur-light));
+    transition: all var(--transition-duration);
+  }
+
+  .menu-item:hover .menu-icon {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+  }
+
+  .menu-item.danger:hover .menu-icon {
+    background: rgba(244, 67, 54, 0.1);
   }
 
   .menu-label {
     flex: 1;
+    font-weight: 500;
   }
 
   .menu-separator {
     height: 1px;
-    background-color: #e0e0e0;
-    margin: 4px 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border-color),
+      transparent
+    );
+    margin: var(--spacing-extra-small) var(--spacing-medium);
+    position: relative;
+  }
+
+  .menu-separator::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+  }
+
+  /* 動畫 */
+  @keyframes contextMenuSlideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* 響應式設計 */
+  @media (max-width: 480px) {
+    .context-menu {
+      min-width: 160px;
+      font-size: 13px;
+    }
+
+    .menu-item {
+      padding: var(--spacing-extra-small) var(--spacing-small);
+    }
+
+    .menu-icon {
+      width: 20px;
+      height: 20px;
+      font-size: 14px;
+    }
   }
 </style>
