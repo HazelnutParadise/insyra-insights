@@ -198,11 +198,9 @@
   .confirm-button.primary:hover {
     background-color: #1976d2;
   }
-
   .confirm-button.primary:focus,
   .confirm-button.secondary:focus {
-    outline: 2px solid #2196f3;
-    outline-offset: 2px;
+    outline: none;
   }
 
   /* 主題變化 */

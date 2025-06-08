@@ -220,9 +220,9 @@
     outline: none;
     box-sizing: border-box;
   }
-
   .input-field:focus {
     border-color: #2196f3;
+    outline: none;
   }
 
   .input-footer {
@@ -261,11 +261,9 @@
   .input-button.primary:hover {
     background-color: #1976d2;
   }
-
   .input-button.primary:focus,
   .input-button.secondary:focus {
-    outline: 2px solid #2196f3;
-    outline-offset: 2px;
+    outline: none;
   }
 
   /* 主題變化 */

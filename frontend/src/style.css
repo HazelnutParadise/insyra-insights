@@ -11,6 +11,18 @@ body {
     sans-serif;
 }
 
+/* 移除所有元素的焦點框框 */
+*:focus {
+  outline: none !important;
+}
+
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+}
+
 @font-face {
   font-family: "Nunito";
   font-style: normal;
