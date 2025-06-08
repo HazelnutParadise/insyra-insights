@@ -17,6 +17,16 @@ export function CreateEmptyTable(arg1:string):Promise<boolean>;
 
 export function CreateEmptyTableByID(arg1:number,arg2:string):Promise<number>;
 
+export function ExportTableAsCSV(arg1:number,arg2:string):Promise<boolean>;
+
+export function ExportTableAsExcel(arg1:number,arg2:string):Promise<boolean>;
+
+export function ExportTableAsJSON(arg1:number,arg2:string):Promise<boolean>;
+
+export function GetCurrentLanguage():Promise<string>;
+
+export function GetCurrentProjectPath():Promise<string>;
+
 export function GetParamValue(arg1:string):Promise<string>;
 
 export function GetTableCount():Promise<number>;
@@ -29,17 +39,31 @@ export function GetTableInfo(arg1:number):Promise<Record<string, any>>;
 
 export function GetTableNames():Promise<Array<string>>;
 
+export function GetText(arg1:string):Promise<string>;
+
+export function HasUnsavedChanges():Promise<boolean>;
+
+export function LoadProject(arg1:string):Promise<boolean>;
+
 export function LoadTable(arg1:string,arg2:string):Promise<boolean>;
 
 export function LoadTableByID(arg1:number,arg2:string,arg3:string):Promise<number>;
+
+export function MarkAsSaved():Promise<void>;
 
 export function RemoveTable(arg1:string):Promise<boolean>;
 
 export function RemoveTableByID(arg1:number):Promise<boolean>;
 
+export function SaveProject(arg1:string):Promise<boolean>;
+
+export function SaveProjectAs(arg1:string):Promise<boolean>;
+
 export function SaveTable(arg1:string,arg2:string):Promise<boolean>;
 
 export function SaveTableByID(arg1:number,arg2:string):Promise<boolean>;
+
+export function SetLanguage(arg1:string):Promise<void>;
 
 export function UpdateCellValue(arg1:string,arg2:number,arg3:number,arg4:string):Promise<boolean>;
 

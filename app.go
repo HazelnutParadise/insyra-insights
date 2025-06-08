@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"insyra-insights-wails/i18n"
 	"insyra-insights-wails/services"
 )
 
@@ -23,6 +24,23 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+// I18n 相關方法
+
+// GetText 獲取翻譯文字
+func (a *App) GetText(key string) string {
+	return i18n.T(key)
+}
+
+// SetLanguage 設定語言
+func (a *App) SetLanguage(lang string) {
+	i18n.SetLanguage(lang)
+}
+
+// GetCurrentLanguage 獲取當前語言
+func (a *App) GetCurrentLanguage() string {
+	return "zh-TW" // 預設為繁體中文
 }
 
 // GetParamValue 獲取命令行參數值
@@ -159,4 +177,55 @@ func (a *App) GetTableInfo(tableID int) map[string]interface{} {
 // RemoveTableByID 根據ID移除表格
 func (a *App) RemoveTableByID(tableID int) bool {
 	return a.dataService.RemoveTableByID(tableID)
+}
+
+// ===== 專案檔案操作方法 =====
+
+// SaveProject 儲存整個專案（所有標籤頁）
+func (a *App) SaveProject(filePath string) bool {
+	return a.dataService.SaveProject(filePath)
+}
+
+// SaveProjectAs 另存新檔（所有標籤頁）
+func (a *App) SaveProjectAs(filePath string) bool {
+	return a.dataService.SaveProject(filePath)
+}
+
+// LoadProject 載入專案檔案
+func (a *App) LoadProject(filePath string) bool {
+	return a.dataService.LoadProject(filePath)
+}
+
+// ===== 資料表匯出方法 =====
+
+// ExportTableAsCSV 將指定資料表匯出為 CSV
+func (a *App) ExportTableAsCSV(tableID int, filePath string) bool {
+	return a.dataService.ExportTableAsCSV(tableID, filePath)
+}
+
+// ExportTableAsJSON 將指定資料表匯出為 JSON
+func (a *App) ExportTableAsJSON(tableID int, filePath string) bool {
+	return a.dataService.ExportTableAsJSON(tableID, filePath)
+}
+
+// ExportTableAsExcel 將指定資料表匯出為 Excel
+func (a *App) ExportTableAsExcel(tableID int, filePath string) bool {
+	return a.dataService.ExportTableAsExcel(tableID, filePath)
+}
+
+// ===== 專案狀態管理 =====
+
+// HasUnsavedChanges 檢查是否有未儲存的變更
+func (a *App) HasUnsavedChanges() bool {
+	return a.dataService.HasUnsavedChanges()
+}
+
+// MarkAsSaved 標記專案為已儲存狀態
+func (a *App) MarkAsSaved() {
+	a.dataService.MarkAsSaved()
+}
+
+// GetCurrentProjectPath 獲取當前專案檔案路徑
+func (a *App) GetCurrentProjectPath() string {
+	return a.dataService.GetCurrentProjectPath()
 }

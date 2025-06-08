@@ -14,16 +14,30 @@
     type: "info",
     inputType: "text",
   };
+  export let texts: Record<string, string> = {};
 
   // 創建事件分發器
   const dispatch = createEventDispatcher();
 
+  // 獲取實際使用的選項值（使用 i18n 翻譯作為預設值）
+  $: actualOptions = {
+    title: options.title || texts["dialog_defaults.input_title"] || "輸入",
+    message: options.message,
+    placeholder: options.placeholder,
+    defaultValue: options.defaultValue,
+    confirmText:
+      options.confirmText || texts["dialog_defaults.confirm_button"] || "確定",
+    cancelText:
+      options.cancelText || texts["dialog_defaults.cancel_button"] || "取消",
+    type: options.type || "info",
+    inputType: options.inputType || "text",
+  };
+
   // 輸入值
   let inputValue = "";
-
   // 當組件顯示時，重置輸入值為默認值
   $: if (visible) {
-    inputValue = options.defaultValue || "";
+    inputValue = actualOptions.defaultValue || "";
   }
 
   // 處理確認按鈕點擊
@@ -94,36 +108,36 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-      class="input-dialog {getThemeClass(options.type || 'info')}"
+      class="input-dialog {getThemeClass(actualOptions.type || 'info')}"
       on:click|stopPropagation
     >
       <div class="input-header">
-        <span class="input-icon">{getIcon(options.type || "info")}</span>
-        <h3 class="input-title">{options.title || "輸入"}</h3>
+        <span class="input-icon">{getIcon(actualOptions.type || "info")}</span>
+        <h3 class="input-title">{actualOptions.title}</h3>
       </div>
       <div class="input-content">
-        <p class="input-message">{options.message}</p>
-        {#if options.inputType === "password"}
+        <p class="input-message">{actualOptions.message}</p>
+        {#if actualOptions.inputType === "password"}
           <input
             type="password"
             class="input-field"
-            placeholder={options.placeholder || ""}
+            placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
             on:keydown={handleInputKeydown}
           />
-        {:else if options.inputType === "email"}
+        {:else if actualOptions.inputType === "email"}
           <input
             type="email"
             class="input-field"
-            placeholder={options.placeholder || ""}
+            placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
             on:keydown={handleInputKeydown}
           />
-        {:else if options.inputType === "number"}
+        {:else if actualOptions.inputType === "number"}
           <input
             type="number"
             class="input-field"
-            placeholder={options.placeholder || ""}
+            placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
             on:keydown={handleInputKeydown}
           />
@@ -131,7 +145,7 @@
           <input
             type="text"
             class="input-field"
-            placeholder={options.placeholder || ""}
+            placeholder={actualOptions.placeholder || ""}
             bind:value={inputValue}
             on:keydown={handleInputKeydown}
           />
@@ -140,10 +154,10 @@
 
       <div class="input-footer">
         <button class="input-button secondary" on:click={handleCancel}>
-          {options.cancelText || "取消"}
+          {actualOptions.cancelText}
         </button>
         <button class="input-button primary" on:click={handleConfirm}>
-          {options.confirmText || "確定"}
+          {actualOptions.confirmText}
         </button>
       </div>
     </div>

@@ -517,3 +517,116 @@ func (s *DataTableService) RemoveTableByID(tableID int) bool {
 	s.dataTables = slices.Delete(s.dataTables, tableID, tableID+1)
 	return true
 }
+
+// ===== 專案檔案操作 =====
+
+// 專案狀態管理
+type ProjectState struct {
+	currentFilePath   string
+	hasUnsavedChanges bool
+}
+
+var projectState = &ProjectState{
+	currentFilePath:   "",
+	hasUnsavedChanges: false,
+}
+
+// SaveProject 儲存整個專案（所有標籤頁）
+func (s *DataTableService) SaveProject(filePath string) bool {
+	// TODO: 實現專案檔案儲存
+	// 應該保存所有 dataTables 到一個專案檔案中
+	// 格式可以是 JSON 或自定義格式
+
+	// 暫時實現：將所有表格保存到一個 JSON 檔案
+	projectData := map[string]any{
+		"version": "1.0",
+		"tables":  make([]map[string]any, 0),
+	}
+	for i, dt := range s.dataTables {
+		if dt != nil {
+			rowCount, colCount := dt.Size()
+			tableData := map[string]any{
+				"id":       i,
+				"name":     dt.GetName(),
+				"rowCount": rowCount,
+				"colCount": colCount,
+				// TODO: 添加實際的資料匯出
+			}
+			projectData["tables"] = append(projectData["tables"].([]map[string]any), tableData)
+		}
+	}
+
+	// 這裡應該實際寫入檔案
+	// 暫時返回 true
+	projectState.currentFilePath = filePath
+	projectState.hasUnsavedChanges = false
+	return true
+}
+
+// LoadProject 載入專案檔案
+func (s *DataTableService) LoadProject(filePath string) bool {
+	// TODO: 實現專案檔案載入
+	// 清空現有資料表，載入專案檔案中的所有表格
+
+	projectState.currentFilePath = filePath
+	projectState.hasUnsavedChanges = false
+	return true
+}
+
+// ===== 資料表匯出方法 =====
+
+// ExportTableAsCSV 將指定資料表匯出為 CSV
+func (s *DataTableService) ExportTableAsCSV(tableID int, filePath string) bool {
+	dt := s.getTableByID(tableID)
+	if dt == nil {
+		return false
+	}
+
+	// TODO: 實現 CSV 匯出
+	// 使用 insyra 的 CSV 輸出功能
+	return true
+}
+
+// ExportTableAsJSON 將指定資料表匯出為 JSON
+func (s *DataTableService) ExportTableAsJSON(tableID int, filePath string) bool {
+	dt := s.getTableByID(tableID)
+	if dt == nil {
+		return false
+	}
+
+	// TODO: 實現 JSON 匯出
+	return true
+}
+
+// ExportTableAsExcel 將指定資料表匯出為 Excel
+func (s *DataTableService) ExportTableAsExcel(tableID int, filePath string) bool {
+	dt := s.getTableByID(tableID)
+	if dt == nil {
+		return false
+	}
+
+	// TODO: 實現 Excel 匯出
+	return true
+}
+
+// ===== 專案狀態管理 =====
+
+// HasUnsavedChanges 檢查是否有未儲存的變更
+func (s *DataTableService) HasUnsavedChanges() bool {
+	return projectState.hasUnsavedChanges
+}
+
+// MarkAsSaved 標記專案為已儲存狀態
+func (s *DataTableService) MarkAsSaved() {
+	projectState.hasUnsavedChanges = false
+}
+
+// GetCurrentProjectPath 獲取當前專案檔案路徑
+func (s *DataTableService) GetCurrentProjectPath() string {
+	return projectState.currentFilePath
+}
+
+// MarkAsModified 標記專案有變更（在修改資料時調用）
+func (s *DataTableService) MarkAsModified() {
+	projectState.hasUnsavedChanges = true
+}

@@ -5,6 +5,7 @@
     GetTableDataByID,
     UpdateCellValueByID,
     UpdateColumnNameByID,
+    GetText,
   } from "../../wailsjs/go/main/App";
   import ContextMenu from "./ContextMenu.svelte";
   import type { ContextMenuConfig } from "../types/contextMenu";
@@ -15,6 +16,57 @@
 
   // 創建事件分發器
   const dispatch = createEventDispatcher();
+
+  // i18n 翻譯輔助函數
+  async function t(key: string, vars?: Record<string, any>): Promise<string> {
+    try {
+      let text = await GetText(key);
+      if (vars) {
+        Object.entries(vars).forEach(([key, value]) => {
+          text = text.replace(`{${key}}`, value);
+        });
+      }
+      return text;
+    } catch (error) {
+      console.warn(`Translation missing for key: ${key}`);
+      return key;
+    }
+  }
+  // 翻譯文字快取
+  let texts: Record<string, string> = {};
+
+  // 載入翻譯文字
+  async function loadTexts() {
+    const keys = [
+      "ui.table.loading",
+      "ui.table.no_data",
+      "ui.table.selected_content",
+      "ui.table.selected_row",
+      "ui.table.selected_column",
+      "ui.table.cell_position",
+      "ui.table.update_failed",
+      "ui.context_menu.insert_row_above",
+      "ui.context_menu.insert_row_below",
+      "ui.context_menu.duplicate_row",
+      "ui.context_menu.delete_row",
+      "ui.context_menu.insert_column_left",
+      "ui.context_menu.insert_column_right",
+      "ui.context_menu.rename_column",
+      "ui.context_menu.duplicate_column",
+      "ui.context_menu.delete_column",
+      "ui.context_menu.copy",
+      "ui.context_menu.paste",
+      "ui.context_menu.clear",
+    ];
+
+    for (const key of keys) {
+      try {
+        texts[key] = await GetText(key);
+      } catch (error) {
+        console.warn(`Failed to load translation for ${key}`);
+      }
+    }
+  }
   // 狀態變數
   let tableData: TableData | null = null;
   let loading = true;
@@ -47,38 +99,76 @@
   let contextMenuY = 0;
   let contextMenuType = ""; // 'row' | 'column' | 'cell'
   let contextMenuContext = {}; // 上下文信息
-
   // 右鍵菜單配置
-  const contextMenuConfig: ContextMenuConfig = {
+  let contextMenuConfig: ContextMenuConfig = {
     row: [
-      { id: "insertRowAbove", label: "在上方插入行", icon: "⬆️" },
-      { id: "insertRowBelow", label: "在下方插入行", icon: "⬇️" },
+      { id: "insertRowAbove", label: "", icon: "⬆️" },
+      { id: "insertRowBelow", label: "", icon: "⬇️" },
       { id: "separator1", type: "separator" },
-      { id: "duplicateRow", label: "複製行", icon: "📋" },
+      { id: "duplicateRow", label: "", icon: "📋" },
       { id: "separator2", type: "separator" },
-      { id: "deleteRow", label: "刪除行", icon: "🗑️", danger: true },
+      { id: "deleteRow", label: "", icon: "🗑️", danger: true },
     ],
     column: [
-      { id: "insertColumnLeft", label: "在左邊插入欄", icon: "⬅️" },
-      { id: "insertColumnRight", label: "在右邊插入欄", icon: "➡️" },
+      { id: "insertColumnLeft", label: "", icon: "⬅️" },
+      { id: "insertColumnRight", label: "", icon: "➡️" },
       { id: "separator1", type: "separator" },
-      { id: "renameColumn", label: "重新命名欄位", icon: "✏️" },
-      { id: "duplicateColumn", label: "複製欄位", icon: "📋" },
+      { id: "renameColumn", label: "", icon: "✏️" },
+      { id: "duplicateColumn", label: "", icon: "📋" },
       { id: "separator2", type: "separator" },
-      { id: "deleteColumn", label: "刪除欄位", icon: "🗑️", danger: true },
+      { id: "deleteColumn", label: "", icon: "🗑️", danger: true },
     ],
     cell: [
-      { id: "copy", label: "複製", icon: "📋" },
-      { id: "paste", label: "貼上", icon: "📄", disabled: true }, // 可以根據剪貼簿狀態動態設置
+      { id: "copy", label: "", icon: "📋" },
+      { id: "paste", label: "", icon: "📄", disabled: true },
       { id: "separator1", type: "separator" },
-      { id: "clear", label: "清除內容", icon: "🧹" },
+      { id: "clear", label: "", icon: "🧹" },
       { id: "separator2", type: "separator" },
-      { id: "insertRowAbove", label: "在上方插入行", icon: "⬆️" },
-      { id: "insertRowBelow", label: "在下方插入行", icon: "⬇️" },
-      { id: "insertColumnLeft", label: "在左邊插入欄", icon: "⬅️" },
-      { id: "insertColumnRight", label: "在右邊插入欄", icon: "➡️" },
+      { id: "insertRowAbove", label: "", icon: "⬆️" },
+      { id: "insertRowBelow", label: "", icon: "⬇️" },
+      { id: "insertColumnLeft", label: "", icon: "⬅️" },
+      { id: "insertColumnRight", label: "", icon: "➡️" },
     ],
   };
+
+  // 更新菜單配置的翻譯文字
+  function updateMenuLabels() {
+    // Row menu
+    contextMenuConfig.row[0].label =
+      texts["ui.context_menu.insert_row_above"] || "在上方插入列";
+    contextMenuConfig.row[1].label =
+      texts["ui.context_menu.insert_row_below"] || "在下方插入列";
+    contextMenuConfig.row[3].label =
+      texts["ui.context_menu.duplicate_row"] || "複製列";
+    contextMenuConfig.row[5].label =
+      texts["ui.context_menu.delete_row"] || "刪除列";
+
+    // Column menu
+    contextMenuConfig.column[0].label =
+      texts["ui.context_menu.insert_column_left"] || "在左邊插入變項";
+    contextMenuConfig.column[1].label =
+      texts["ui.context_menu.insert_column_right"] || "在右邊插入變項";
+    contextMenuConfig.column[3].label =
+      texts["ui.context_menu.rename_column"] || "重新命名變項";
+    contextMenuConfig.column[4].label =
+      texts["ui.context_menu.duplicate_column"] || "複製變項";
+    contextMenuConfig.column[6].label =
+      texts["ui.context_menu.delete_column"] || "刪除變項";
+
+    // Cell menu
+    contextMenuConfig.cell[0].label = texts["ui.context_menu.copy"] || "複製";
+    contextMenuConfig.cell[1].label = texts["ui.context_menu.paste"] || "貼上";
+    contextMenuConfig.cell[3].label =
+      texts["ui.context_menu.clear"] || "清除內容";
+    contextMenuConfig.cell[5].label =
+      texts["ui.context_menu.insert_row_above"] || "在上方插入列";
+    contextMenuConfig.cell[6].label =
+      texts["ui.context_menu.insert_row_below"] || "在下方插入列";
+    contextMenuConfig.cell[7].label =
+      texts["ui.context_menu.insert_column_left"] || "在左邊插入變項";
+    contextMenuConfig.cell[8].label =
+      texts["ui.context_menu.insert_column_right"] || "在右邊插入變項";
+  }
 
   // 防止雙擊時觸發點擊的標記
   let doubleClickInProgress = false;
@@ -100,15 +190,18 @@
       updateSelectedCellContent();
     }
   }
-
   // 更新選中內容顯示的函數
   function updateSelectedCellContent() {
     if (!tableData) return;
 
     if (selectionMode === "row" && selectedRow >= 0) {
-      selectedCellContent = `第 ${selectedRow + 1} 行`;
+      selectedCellContent = (
+        texts["ui.table.selected_row"] || "第 {row} 列"
+      ).replace("{row}", (selectedRow + 1).toString());
     } else if (selectionMode === "column" && selectedCol >= 0) {
-      selectedCellContent = `${indexToLetters(selectedCol)} 欄`;
+      selectedCellContent = (
+        texts["ui.table.selected_column"] || "{column} 變項"
+      ).replace("{column}", indexToLetters(selectedCol));
     } else if (
       selectionMode === "cell" &&
       selectedRow >= 0 &&
@@ -118,7 +211,10 @@
       if (column) {
         const cellValue = tableData.rows[selectedRow]?.cells[column.name];
         const displayValue = formatCellValue(cellValue);
-        selectedCellContent = `${indexToLetters(selectedCol)}${selectedRow + 1}: ${displayValue}`;
+        const position = (texts["ui.table.cell_position"] || "{column}{row}")
+          .replace("{column}", indexToLetters(selectedCol))
+          .replace("{row}", (selectedRow + 1).toString());
+        selectedCellContent = `${position}: ${displayValue}`;
       }
     } else {
       selectedCellContent = "";
@@ -127,6 +223,11 @@
   onMount(async () => {
     lastTableID = tableID;
     lastTableKey = tableKey;
+
+    // 載入翻譯文字
+    await loadTexts();
+    updateMenuLabels();
+
     await loadTableData();
 
     // 添加文檔點擊事件監聽器
@@ -200,12 +301,11 @@
         if (hasNumeric) numericCols++;
       });
     }
-
     return {
-      總行數: rowCount.toString(),
-      總欄數: colCount.toString(),
-      總儲存格: totalCells.toString(),
-      數值欄數: numericCols.toString(),
+      total_rows: rowCount.toString(),
+      total_variables: colCount.toString(),
+      total_cells: totalCells.toString(),
+      numeric_variables: numericCols.toString(),
     };
   } // 儲存格點擊處理
   function handleCellClick(rowIndex: number, colIndex: number, value: string) {
@@ -396,12 +496,10 @@
           editingState.colIndex,
           editingState.value
         );
-      }
-
-      // 重新載入資料
+      } // 重新載入資料
       await loadTableData();
     } catch (err) {
-      error = `更新資料失敗: ${err}`;
+      error = `${texts["ui.table.update_failed"] || "更新資料失敗"}: ${err}`;
     } finally {
       // 結束編輯狀態
       editingState = {
@@ -589,7 +687,7 @@
 
 <div class="data-table-container">
   {#if loading}
-    <div class="loading">載入中...</div>
+    <div class="loading">{texts["ui.table.loading"] || "載入中..."}</div>
   {:else if error}
     <div class="error">{error}</div>
   {:else if tableData}
@@ -717,12 +815,12 @@
     </div>
     {#if selectedCellContent}
       <div class="selected-content">
-        <strong>選中內容:</strong>
+        <strong>{texts["ui.table.selected_content"] || "選中內容"}:</strong>
         {selectedCellContent}
       </div>
     {/if}
   {:else}
-    <div class="no-data">無資料可顯示</div>
+    <div class="no-data">{texts["ui.table.no_data"] || "無資料可顯示"}</div>
   {/if}
 </div>
 

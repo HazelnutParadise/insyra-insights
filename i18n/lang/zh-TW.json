@@ -21,6 +21,121 @@
     "import_fail": "匯入失敗：",
     "creating_project": "創建新的分析專案...",
     "project_ready": "分析專案已準備就緒！",
-    "dialog_error": "無法開啟檔案選擇對話框："
+    "dialog_error": "無法開啟檔案選擇對話框：",
+    "save_success": "專案已成功儲存",
+    "save_fail": "專案儲存失敗：",
+    "export_success": "資料表已成功匯出",
+    "export_fail": "資料表匯出失敗：",
+    "choose_save_location": "選擇儲存位置",
+    "choose_export_format": "選擇匯出格式"
+  },
+  "ui": {
+    "buttons": {
+      "add_variable": "新增變項",
+      "add_row": "新增列",
+      "add_calculated_variable": "新增計算變項",
+      "confirm": "確定",
+      "cancel": "取消",
+      "clear": "清除",
+      "open_file": "開啟檔案",
+      "save_file": "儲存專案",
+      "save_as": "另存新檔",
+      "export_table": "匯出資料表"
+    },
+    "labels": {
+      "variable": "變項",
+      "row": "列",
+      "name": "名稱",
+      "formula": "公式",
+      "expression": "CCL 表達式",
+      "tab_name": "標籤名稱"
+    },
+    "stats": {
+      "total_rows": "總列數",
+      "total_variables": "總變項數",
+      "total_cells": "總儲存格",
+      "numeric_variables": "數值變項數",
+      "basic_statistics": "基本統計"
+    },
+    "table": {
+      "loading": "載入中...",
+      "no_data": "無資料可顯示",
+      "selected_content": "選中內容",
+      "selected_row": "第 {row} 列",
+      "selected_column": "{column} 變項",
+      "cell_position": "{column}{row}",
+      "table_placeholder": "資料表為空，請新增資料",
+      "update_failed": "更新資料失敗"
+    },
+    "context_menu": {
+      "insert_row_above": "在上方插入列",
+      "insert_row_below": "在下方插入列",
+      "duplicate_row": "複製列",
+      "delete_row": "刪除列",
+      "insert_column_left": "在左邊插入變項",
+      "insert_column_right": "在右邊插入變項",
+      "rename_column": "重新命名變項",
+      "duplicate_column": "複製變項",
+      "delete_column": "刪除變項",
+      "copy": "複製",
+      "paste": "貼上",
+      "clear": "清除內容"
+    },
+    "tabs": {
+      "new_tab_prefix": "Table"
+    },
+    "placeholders": {
+      "ccl_expression": "CCL 表達式",
+      "variable_name": "變項名稱",
+      "file_path": "檔案路徑",
+      "tab_name": "標籤名稱"
+    },
+    "defaults": {
+      "new_variable_name": "新變項"
+    }
+  },
+  "dialog_defaults": {
+    "alert_title": "提示",
+    "confirm_title": "確認",
+    "input_title": "輸入",
+    "confirm_button": "確定",
+    "cancel_button": "取消"
+  },
+  "dialogs": {
+    "add_variable": {
+      "title": "新增變項",
+      "message": "請輸入新變項名稱:",
+      "placeholder": "變項名稱",
+      "confirm": "新增",
+      "cancel": "取消"
+    },
+    "add_row": {
+      "title": "新增列",
+      "message": "確定要新增一列嗎?",
+      "confirm": "新增",
+      "cancel": "取消"
+    },
+    "create_table_failed": {
+      "title": "創建失敗",
+      "message": "無法創建資料表"
+    },
+    "save_as": {
+      "title": "另存新檔",
+      "message": "請選擇儲存位置和檔案名稱"
+    },
+    "export": {
+      "title": "匯出資料表",
+      "message": "請選擇匯出格式和位置",
+      "formats": {
+        "csv": "CSV 檔案 (*.csv)",
+        "json": "JSON 檔案 (*.json)",
+        "excel": "Excel 檔案 (*.xlsx)"
+      }
+    }
+  },
+  "file_operations": {
+    "project_file": "Insyra 專案檔案 (*.isr)",
+    "unsaved_changes": "有未儲存的變更",
+    "save_before_close": "是否要在關閉前儲存專案？"
   }
 }

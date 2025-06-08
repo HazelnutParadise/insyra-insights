@@ -3,6 +3,7 @@
   import Alert from "./components/Alert.svelte";
   import Confirm from "./components/Confirm.svelte";
   import Input from "./components/Input.svelte";
+  import type { TableStats } from "./types/datatable";
   import {
     LoadTable,
     SaveTable,
@@ -21,6 +22,21 @@
     GetTableInfo,
     GetTableDataByID,
     RemoveTableByID,
+    // i18n 方法
+    GetText,
+    SetLanguage,
+    GetCurrentLanguage,
+    // 專案檔案操作
+    SaveProject,
+    SaveProjectAs,
+    LoadProject,
+    HasUnsavedChanges,
+    MarkAsSaved,
+    GetCurrentProjectPath,
+    // 匯出功能
+    ExportTableAsCSV,
+    ExportTableAsJSON,
+    ExportTableAsExcel,
   } from "../wailsjs/go/main/App";
   import { onMount } from "svelte";
   import { GetParamValue } from "../wailsjs/go/main/App";
@@ -65,16 +81,99 @@
   let errorMessage = "";
   let showError = false;
 
+  // i18n 狀態
+  let currentLanguage = "zh-TW";
+  let texts: Record<string, string> = {};
+
+  // 專案狀態
+  let currentProjectPath = "";
+  let hasUnsavedChanges = false;
+
   // 統計數據
-  let currentStats = {
-    總行數: "0",
-    總欄數: "0",
-    總儲存格: "0",
-    數值欄數: "0",
+  let currentStats: TableStats = {
+    total_rows: "0",
+    total_variables: "0",
+    total_cells: "0",
+    numeric_variables: "0",
   };
+
+  // i18n 輔助函數
+  async function t(key: string): Promise<string> {
+    try {
+      return await GetText(key);
+    } catch (err) {
+      console.warn(`翻譯鍵值 "${key}" 不存在，返回預設值`);
+      return key;
+    }
+  }
+
+  // 初始化 i18n
+  async function initI18n() {
+    try {
+      currentLanguage = await GetCurrentLanguage();
+      // 預載入常用翻譯
+      texts = {
+        "ui.buttons.add_variable": await t("ui.buttons.add_variable"),
+        "ui.buttons.add_row": await t("ui.buttons.add_row"),
+        "ui.buttons.confirm": await t("ui.buttons.confirm"),
+        "ui.buttons.clear": await t("ui.buttons.clear"),
+        "ui.buttons.save_file": await t("ui.buttons.save_file"),
+        "ui.buttons.save_as": await t("ui.buttons.save_as"),
+        "ui.buttons.export_table": await t("ui.buttons.export_table"),
+        "ui.labels.variable": await t("ui.labels.variable"),
+        "ui.labels.row": await t("ui.labels.row"),
+        "ui.labels.name": await t("ui.labels.name"),
+        "ui.labels.expression": await t("ui.labels.expression"),
+        "ui.placeholders.variable_name": await t(
+          "ui.placeholders.variable_name"
+        ),
+        "ui.placeholders.ccl_expression": await t(
+          "ui.placeholders.ccl_expression"
+        ),
+        "ui.placeholders.tab_name": await t("ui.placeholders.tab_name"),
+        "ui.stats.total_rows": await t("ui.stats.total_rows"),
+        "ui.stats.total_variables": await t("ui.stats.total_variables"),
+        "ui.stats.total_cells": await t("ui.stats.total_cells"),
+        "ui.stats.numeric_variables": await t("ui.stats.numeric_variables"),
+        "ui.stats.basic_statistics": await t("ui.stats.basic_statistics"),
+        "ui.defaults.new_variable_name": await t(
+          "ui.defaults.new_variable_name"
+        ),
+        "dialogs.add_variable.title": await t("dialogs.add_variable.title"),
+        "dialogs.add_variable.message": await t("dialogs.add_variable.message"),
+        "dialogs.add_variable.placeholder": await t(
+          "dialogs.add_variable.placeholder"
+        ),
+        "dialogs.add_variable.confirm": await t("dialogs.add_variable.confirm"),
+        "dialogs.add_variable.cancel": await t("dialogs.add_variable.cancel"),
+        "dialogs.create_table_failed.title": await t(
+          "dialogs.create_table_failed.title"
+        ),
+        "dialogs.create_table_failed.message": await t(
+          "dialogs.create_table_failed.message"
+        ),
+        "dialog_defaults.alert_title": await t("dialog_defaults.alert_title"),
+        "dialog_defaults.confirm_title": await t(
+          "dialog_defaults.confirm_title"
+        ),
+        "dialog_defaults.input_title": await t("dialog_defaults.input_title"),
+        "dialog_defaults.confirm_button": await t(
+          "dialog_defaults.confirm_button"
+        ),
+        "dialog_defaults.cancel_button": await t(
+          "dialog_defaults.cancel_button"
+        ),
+      };
+    } catch (err) {
+      console.error("i18n 初始化失敗:", err);
+    }
+  }
 
   // 組件掛載時執行
   onMount(async () => {
+    // 初始化 i18n
+    await initI18n();
+
     // 為初始標籤頁創建空白資料表
     try {
       const initialTab = tabs[0];
@@ -297,8 +396,9 @@
         tabs[currentTabIndex].id = createSuccess;
       } else {
         await showAlert({
-          title: "創建失敗",
-          message: "無法創建資料表",
+          title: texts["dialogs.create_table_failed.title"] || "創建失敗",
+          message:
+            texts["dialogs.create_table_failed.message"] || "無法創建資料表",
           type: "error",
         });
         return;
@@ -306,12 +406,12 @@
     }
 
     const columnName = await showInput({
-      title: "新增欄位",
-      message: "請輸入新欄位名稱:",
-      placeholder: "欄位名稱",
-      defaultValue: `新欄位 ${currentStats["總欄數"] ? parseInt(currentStats["總欄數"]) + 1 : 1}`,
-      confirmText: "新增",
-      cancelText: "取消",
+      title: texts["dialogs.add_variable.title"] || "新增變項",
+      message: texts["dialogs.add_variable.message"] || "請輸入新變項名稱:",
+      placeholder: texts["dialogs.add_variable.placeholder"] || "變項名稱",
+      defaultValue: `${texts["ui.defaults.new_variable_name"] || "新變項"} ${currentStats["total_variables"] ? parseInt(currentStats["total_variables"]) + 1 : 1}`,
+      confirmText: texts["dialogs.add_variable.confirm"] || "新增",
+      cancelText: texts["dialogs.add_variable.cancel"] || "取消",
     });
     if (columnName) {
       const activeTableID = tabs[currentTabIndex]?.id ?? 0;
@@ -432,66 +532,188 @@
     tableKey++;
   }
 
-  // 接收統計數據更新
+  // 接收統計数據更新
   function handleStatsUpdate(event: CustomEvent) {
     currentStats = event.detail;
   }
 
   // 底部工具列操作
   async function openFile() {
-    // 簡單的文件選擇邏輯，可以擴展為文件對話框
+    // 檢查是否有未儲存的變更
+    if (await HasUnsavedChanges()) {
+      const confirmed = await showConfirm({
+        title: await t("file_operations.unsaved_changes"),
+        message: await t("file_operations.save_before_close"),
+        confirmText: await t("ui.buttons.confirm"),
+        cancelText: await t("ui.buttons.cancel"),
+        type: "warning",
+      });
+
+      if (confirmed) {
+        await saveProject();
+      }
+    }
+
+    // 開啟專案檔案
     const input = await showInput({
-      title: "開啟檔案",
-      message: "請輸入檔案路徑:",
-      placeholder: "檔案路徑",
-      defaultValue: filePath || "test-data.json",
-      confirmText: "開啟",
-      cancelText: "取消",
+      title: await t("ui.buttons.open_file"),
+      message: await t("messages.select_file"),
+      placeholder: await t("ui.placeholders.file_path"),
+      defaultValue: currentProjectPath || "project.isr",
+      confirmText: await t("ui.buttons.open_file"),
+      cancelText: await t("ui.buttons.cancel"),
     });
+
     if (input) {
-      filePath = input;
-      await handleLoadTable();
+      const success = await LoadProject(input);
+      if (success) {
+        currentProjectPath = input;
+        hasUnsavedChanges = false;
+        await showAlert({
+          title: await t("messages.import_success"),
+          message: input,
+          type: "success",
+        });
+        // 重新載入界面
+        location.reload();
+      } else {
+        await showAlert({
+          title: await t("messages.import_fail"),
+          message: input,
+          type: "error",
+        });
+      }
     }
   }
 
-  async function saveFile() {
+  async function saveProject() {
+    if (!currentProjectPath) {
+      await saveProjectAs();
+      return;
+    }
+
+    const success = await SaveProject(currentProjectPath);
+    if (success) {
+      hasUnsavedChanges = false;
+      await MarkAsSaved();
+      await showAlert({
+        title: await t("messages.save_success"),
+        message: currentProjectPath,
+        type: "success",
+      });
+    } else {
+      await showAlert({
+        title: await t("messages.save_fail"),
+        message: currentProjectPath,
+        type: "error",
+      });
+    }
+  }
+
+  async function saveProjectAs() {
+    const input = await showInput({
+      title: await t("dialogs.save_as.title"),
+      message: await t("dialogs.save_as.message"),
+      placeholder: await t("file_operations.project_file"),
+      defaultValue: currentProjectPath || "project.isr",
+      confirmText: await t("ui.buttons.save_as"),
+      cancelText: await t("ui.buttons.cancel"),
+    });
+
+    if (input) {
+      const success = await SaveProjectAs(input);
+      if (success) {
+        currentProjectPath = input;
+        hasUnsavedChanges = false;
+        await MarkAsSaved();
+        await showAlert({
+          title: await t("messages.save_success"),
+          message: input,
+          type: "success",
+        });
+      } else {
+        await showAlert({
+          title: await t("messages.save_fail"),
+          message: input,
+          type: "error",
+        });
+      }
+    }
+  }
+
+  async function exportCurrentTable() {
     if (!isTableLoaded) {
       await showAlert({
-        title: "無法保存",
-        message: "沒有已載入的資料表可保存",
+        title: await t("messages.export_fail"),
+        message: "沒有可匯出的資料表",
         type: "warning",
       });
       return;
     }
 
-    // 如果沒有指定路徑，提示用戶輸入
-    if (!filePath) {
-      const input = await showInput({
-        title: "儲存檔案",
-        message: "請輸入保存路徑:",
-        placeholder: "檔案路徑",
-        defaultValue: "saved-data.json",
-        confirmText: "儲存",
-        cancelText: "取消",
-      });
-      if (input) {
-        filePath = input;
-      } else {
+    // 選擇匯出格式
+    const format = await showInput({
+      title: await t("dialogs.export.title"),
+      message: await t("dialogs.export.message"),
+      placeholder: "csv, json, excel",
+      defaultValue: "csv",
+      confirmText: await t("ui.buttons.export_table"),
+      cancelText: await t("ui.buttons.cancel"),
+    });
+
+    if (!format) return;
+
+    // 選擇匯出路徑
+    const currentTabName = tabs[currentTabIndex]?.name || "table";
+    const defaultFileName = `${currentTabName}.${format.toLowerCase()}`;
+
+    const filePath = await showInput({
+      title: await t("messages.choose_save_location"),
+      message: "請輸入匯出檔案路徑:",
+      placeholder: defaultFileName,
+      defaultValue: defaultFileName,
+      confirmText: await t("ui.buttons.export_table"),
+      cancelText: await t("ui.buttons.cancel"),
+    });
+
+    if (!filePath) return;
+
+    const currentTableID = tabs[currentTabIndex]?.id ?? 0;
+    let success = false;
+
+    switch (format.toLowerCase()) {
+      case "csv":
+        success = await ExportTableAsCSV(currentTableID, filePath);
+        break;
+      case "json":
+        success = await ExportTableAsJSON(currentTableID, filePath);
+        break;
+      case "excel":
+      case "xlsx":
+        success = await ExportTableAsExcel(currentTableID, filePath);
+        break;
+      default:
+        await showAlert({
+          title: await t("messages.export_fail"),
+          message: "不支援的匯出格式",
+          type: "error",
+        });
         return;
-      }
     }
 
-    await handleSaveTable();
-  }
-
-  async function exportFile() {
-    // TODO: 實現匯出功能，可以支持 CSV, Excel 等格式
-    console.log("匯出檔案", tabs[currentTabIndex]?.id);
-    await showAlert({
-      title: "功能開發中",
-      message: "匯出功能尚未實現",
-      type: "info",
-    });
+    if (success) {
+      await showAlert({
+        title: await t("messages.export_success"),
+        message: filePath,
+        type: "success",
+      });
+    } else {
+      await showAlert({
+        title: await t("messages.export_fail"),
+        message: filePath,
+        type: "error",
+      });
+    }
   }
 
   async function openSettings() {
@@ -652,7 +874,7 @@
                 bind:value={editingTabName}
                 on:blur={finishEditingTabName}
                 on:keydown={handleTabNameKeydown}
-                placeholder="標籤名稱"
+                placeholder={texts["ui.placeholders.tab_name"] || "標籤名稱"}
               />
             {:else}
               {tab.name}
@@ -675,29 +897,37 @@
   <!-- 功能列 -->
   <div class="function-bar">
     <div class="function-buttons">
-      <button class="function-button" on:click={addColumn}>新增欄</button>
-      <button class="function-button" on:click={addRow}>新增列</button>
+      <button class="function-button" on:click={addColumn}>
+        {texts["ui.buttons.add_variable"] || "新增變項"}
+      </button>
+      <button class="function-button" on:click={addRow}>
+        {texts["ui.buttons.add_row"] || "新增列"}
+      </button>
     </div>
 
-    <!-- 計算欄輸入區域（常駐顯示） -->
+    <!-- 計算變項輸入區域（常駐顯示） -->
     <div class="column-input">
       <div class="input-row">
         <span class="fx-label">fx</span>
         <input
           type="text"
           class="column-name-input"
-          placeholder="名稱"
+          placeholder={texts["ui.placeholders.variable_name"] || "變項名稱"}
           bind:value={columnNameValue}
         />
         <span class="equals">=</span>
         <input
           type="text"
           class="formula-input"
-          placeholder="CCL 表達式"
+          placeholder={texts["ui.placeholders.ccl_expression"] || "CCL 表達式"}
           bind:value={columnFormulaValue}
         />
-        <button class="confirm-button" on:click={confirmAddColumn}>✓</button>
-        <button class="cancel-button" on:click={clearColumnInput}>清除</button>
+        <button class="confirm-button" on:click={confirmAddColumn}>
+          {texts["ui.buttons.confirm"] || "✓"}
+        </button>
+        <button class="cancel-button" on:click={clearColumnInput}>
+          {texts["ui.buttons.clear"] || "清除"}
+        </button>
       </div>
       {#if showError}
         <div class="error-message">{errorMessage}</div>
@@ -717,7 +947,9 @@
         />
       {:else}
         <div class="table-placeholder">
-          <p>資料表為空，請新增資料</p>
+          <p>
+            {texts["ui.table.table_placeholder"] || "資料表為空，請新增資料"}
+          </p>
         </div>
       {/if}
     </div>
@@ -725,24 +957,32 @@
     <!-- 右側資訊區域 -->
     <div class="info-area">
       <div class="info-header">
-        <h3>基本統計</h3>
+        <h3>{texts["ui.stats.basic_statistics"] || "基本統計"}</h3>
       </div>
       <div class="stats-content">
         <div class="stat-item">
-          <span class="stat-label">行數:</span>
-          <span class="stat-value">{currentStats["總行數"]}</span>
+          <span class="stat-label"
+            >{texts["ui.stats.total_rows"] || "總列數"}:</span
+          >
+          <span class="stat-value">{currentStats["total_rows"]}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">列數:</span>
-          <span class="stat-value">{currentStats["總欄數"]}</span>
+          <span class="stat-label"
+            >{texts["ui.stats.total_variables"] || "總變項數"}:</span
+          >
+          <span class="stat-value">{currentStats["total_variables"]}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">總儲存格:</span>
-          <span class="stat-value">{currentStats["總儲存格"]}</span>
+          <span class="stat-label"
+            >{texts["ui.stats.total_cells"] || "總儲存格"}:</span
+          >
+          <span class="stat-value">{currentStats["total_cells"]}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">數值欄數:</span>
-          <span class="stat-value">{currentStats["數值欄數"]}</span>
+          <span class="stat-label"
+            >{texts["ui.stats.numeric_variables"] || "數值變項數"}:</span
+          >
+          <span class="stat-value">{currentStats["numeric_variables"]}</span>
         </div>
       </div>
     </div>
@@ -750,14 +990,18 @@
 
   <!-- 底部工具列 -->
   <div class="bottom-toolbar">
-    <button class="toolbar-button open-button" on:click={openFile}>開啟</button>
-    <button class="toolbar-button save-button" on:click={saveFile}>存檔</button>
-    <button class="toolbar-button export-button" on:click={exportFile}
-      >匯出</button
-    >
-    <button class="toolbar-button settings-button" on:click={openSettings}
-      >設定</button
-    >
+    <button class="toolbar-button open-button" on:click={openFile}>
+      {texts["ui.buttons.open_file"] || "開啟專案"}
+    </button>
+    <button class="toolbar-button save-button" on:click={saveProject}>
+      {texts["ui.buttons.save_file"] || "儲存專案"}
+    </button>
+    <button class="toolbar-button save-as-button" on:click={saveProjectAs}>
+      {texts["ui.buttons.save_as"] || "另存新檔"}
+    </button>
+    <button class="toolbar-button export-button" on:click={exportCurrentTable}>
+      {texts["ui.buttons.export_table"] || "匯出資料表"}
+    </button>
   </div>
 </main>
 
@@ -765,18 +1009,21 @@
 <Alert
   visible={$alertStore.visible}
   options={$alertStore.options}
+  {texts}
   on:close={(e) => closeAlert()}
 />
 
 <Confirm
   visible={$confirmStore.visible}
   options={$confirmStore.options}
+  {texts}
   on:close={(e) => closeConfirm(e.detail.result)}
 />
 
 <Input
   visible={$inputStore.visible}
   options={$inputStore.options}
+  {texts}
   on:close={(e) => closeInput(e.detail.result)}
 />
 
@@ -1099,11 +1346,6 @@
   .export-button {
     background-color: rgb(255, 251, 235); /* 淡橙色背景 */
     color: rgb(245, 158, 11); /* 橙色文字 */
-  }
-
-  .settings-button {
-    background-color: rgb(249, 250, 251); /* 淡灰色背景 */
-    color: rgb(107, 114, 128); /* 灰色文字 */
   }
 
   .toolbar-button:hover {

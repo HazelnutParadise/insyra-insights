@@ -11,9 +11,21 @@
     cancelText: "取消",
     type: "info",
   };
+  export let texts: Record<string, string> = {};
 
   // 創建事件分發器
   const dispatch = createEventDispatcher();
+
+  // 獲取實際使用的選項值（使用 i18n 翻譯作為預設值）
+  $: actualOptions = {
+    title: options.title || texts["dialog_defaults.confirm_title"] || "確認",
+    message: options.message,
+    confirmText:
+      options.confirmText || texts["dialog_defaults.confirm_button"] || "確定",
+    cancelText:
+      options.cancelText || texts["dialog_defaults.cancel_button"] || "取消",
+    type: options.type || "info",
+  };
 
   // 處理確認按鈕點擊
   function handleConfirm() {
@@ -74,28 +86,29 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-      class="confirm-dialog {getThemeClass(options.type || 'info')}"
+      class="confirm-dialog {getThemeClass(actualOptions.type || 'info')}"
       on:click|stopPropagation
     >
       <div class="confirm-header">
-        <span class="confirm-icon">{getIcon(options.type || "info")}</span>
-        <h3 class="confirm-title">{options.title || "確認"}</h3>
+        <span class="confirm-icon">{getIcon(actualOptions.type || "info")}</span
+        >
+        <h3 class="confirm-title">{actualOptions.title}</h3>
       </div>
 
       <div class="confirm-content">
-        <p class="confirm-message">{options.message}</p>
+        <p class="confirm-message">{actualOptions.message}</p>
       </div>
 
       <div class="confirm-footer">
         <button class="confirm-button secondary" on:click={handleCancel}>
-          {options.cancelText || "取消"}
+          {actualOptions.cancelText}
         </button>
         <button
           class="confirm-button primary"
           on:click={handleConfirm}
           autofocus
         >
-          {options.confirmText || "確定"}
+          {actualOptions.confirmText}
         </button>
       </div>
     </div>

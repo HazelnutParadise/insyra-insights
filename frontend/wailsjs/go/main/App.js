@@ -34,6 +34,26 @@ export function CreateEmptyTableByID(arg1, arg2) {
   return window['go']['main']['App']['CreateEmptyTableByID'](arg1, arg2);
 }
 
+export function ExportTableAsCSV(arg1, arg2) {
+  return window['go']['main']['App']['ExportTableAsCSV'](arg1, arg2);
+}
+
+export function ExportTableAsExcel(arg1, arg2) {
+  return window['go']['main']['App']['ExportTableAsExcel'](arg1, arg2);
+}
+
+export function ExportTableAsJSON(arg1, arg2) {
+  return window['go']['main']['App']['ExportTableAsJSON'](arg1, arg2);
+}
+
+export function GetCurrentLanguage() {
+  return window['go']['main']['App']['GetCurrentLanguage']();
+}
+
+export function GetCurrentProjectPath() {
+  return window['go']['main']['App']['GetCurrentProjectPath']();
+}
+
 export function GetParamValue(arg1) {
   return window['go']['main']['App']['GetParamValue'](arg1);
 }
@@ -58,12 +78,28 @@ export function GetTableNames() {
   return window['go']['main']['App']['GetTableNames']();
 }
 
+export function GetText(arg1) {
+  return window['go']['main']['App']['GetText'](arg1);
+}
+
+export function HasUnsavedChanges() {
+  return window['go']['main']['App']['HasUnsavedChanges']();
+}
+
+export function LoadProject(arg1) {
+  return window['go']['main']['App']['LoadProject'](arg1);
+}
+
 export function LoadTable(arg1, arg2) {
   return window['go']['main']['App']['LoadTable'](arg1, arg2);
 }
 
 export function LoadTableByID(arg1, arg2, arg3) {
   return window['go']['main']['App']['LoadTableByID'](arg1, arg2, arg3);
+}
+
+export function MarkAsSaved() {
+  return window['go']['main']['App']['MarkAsSaved']();
 }
 
 export function RemoveTable(arg1) {
@@ -74,12 +110,24 @@ export function RemoveTableByID(arg1) {
   return window['go']['main']['App']['RemoveTableByID'](arg1);
 }
 
+export function SaveProject(arg1) {
+  return window['go']['main']['App']['SaveProject'](arg1);
+}
+
+export function SaveProjectAs(arg1) {
+  return window['go']['main']['App']['SaveProjectAs'](arg1);
+}
+
 export function SaveTable(arg1, arg2) {
   return window['go']['main']['App']['SaveTable'](arg1, arg2);
 }
 
 export function SaveTableByID(arg1, arg2) {
   return window['go']['main']['App']['SaveTableByID'](arg1, arg2);
+}
+
+export function SetLanguage(arg1) {
+  return window['go']['main']['App']['SetLanguage'](arg1);
 }
 
 export function UpdateCellValue(arg1, arg2, arg3, arg4) {

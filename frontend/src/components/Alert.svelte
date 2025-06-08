@@ -10,9 +10,19 @@
     buttonText: "確定",
     type: "info",
   };
+  export let texts: Record<string, string> = {};
 
   // 創建事件分發器
   const dispatch = createEventDispatcher();
+
+  // 獲取實際使用的選項值（使用 i18n 翻譯作為預設值）
+  $: actualOptions = {
+    title: options.title || texts["dialog_defaults.alert_title"] || "提示",
+    message: options.message,
+    buttonText:
+      options.buttonText || texts["dialog_defaults.confirm_button"] || "確定",
+    type: options.type || "info",
+  };
 
   // 處理確定按鈕點擊
   function handleOk() {
@@ -72,21 +82,21 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-      class="alert-dialog {getThemeClass(options.type || 'info')}"
+      class="alert-dialog {getThemeClass(actualOptions.type || 'info')}"
       on:click|stopPropagation
     >
       <div class="alert-header">
-        <span class="alert-icon">{getIcon(options.type || "info")}</span>
-        <h3 class="alert-title">{options.title || "提示"}</h3>
+        <span class="alert-icon">{getIcon(actualOptions.type || "info")}</span>
+        <h3 class="alert-title">{actualOptions.title}</h3>
       </div>
 
       <div class="alert-content">
-        <p class="alert-message">{options.message}</p>
+        <p class="alert-message">{actualOptions.message}</p>
       </div>
 
       <div class="alert-footer">
         <button class="alert-button primary" on:click={handleOk} autofocus>
-          {options.buttonText || "確定"}
+          {actualOptions.buttonText}
         </button>
       </div>
     </div>

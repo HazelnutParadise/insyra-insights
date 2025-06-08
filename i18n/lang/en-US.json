@@ -3,5 +3,139 @@
     "slogan": "Insight Par Excellence, Born for Community",
     "loading": "Starting up...",
     "version": "Version"
+  },
+  "welcome": {
+    "title": "Welcome to Insyra Insights",
+    "subtitle": "Statistical Analysis Software",
+    "description": "Please select a data source to import, or start a new analysis project",
+    "import_csv": "Import CSV File",
+    "import_excel": "Import Excel File",
+    "import_json": "Import JSON File",
+    "import_sqlite": "Import SQLite Database",
+    "start_analysis": "Start New Analysis Project",
+    "today_is": "Today is"
+  },
+  "messages": {
+    "select_file": "Select file...",
+    "import_success": "Data imported successfully:",
+    "import_fail": "Import failed:",
+    "creating_project": "Creating new analysis project...",
+    "project_ready": "Analysis project is ready!",
+    "dialog_error": "Unable to open file selection dialog:",
+    "save_success": "Project saved successfully",
+    "save_fail": "Failed to save project:",
+    "export_success": "Table exported successfully",
+    "export_fail": "Failed to export table:",
+    "choose_save_location": "Choose save location",
+    "choose_export_format": "Choose export format"
+  },
+  "ui": {
+    "buttons": {
+      "add_variable": "Add Variable",
+      "add_row": "Add Row",
+      "add_calculated_variable": "Add Calculated Variable",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "clear": "Clear",
+      "open_file": "Open File",
+      "save_file": "Save Project",
+      "save_as": "Save As",
+      "export_table": "Export Table"
+    },
+    "labels": {
+      "variable": "Variable",
+      "row": "Row",
+      "name": "Name",
+      "formula": "Formula",
+      "expression": "CCL Expression",
+      "tab_name": "Tab Name"
+    },
+    "stats": {
+      "total_rows": "Total Rows",
+      "total_variables": "Total Variables",
+      "total_cells": "Total Cells",
+      "numeric_variables": "Numeric Variables",
+      "basic_statistics": "Basic Statistics"
+    },
+    "table": {
+      "loading": "Loading...",
+      "no_data": "No data available",
+      "selected_content": "Selected Content",
+      "selected_row": "Row {row}",
+      "selected_column": "Column {column}",
+      "cell_position": "{column}{row}",
+      "table_placeholder": "Table is empty, please add data",
+      "update_failed": "Failed to update data"
+    },
+    "context_menu": {
+      "insert_row_above": "Insert Row Above",
+      "insert_row_below": "Insert Row Below",
+      "duplicate_row": "Duplicate Row",
+      "delete_row": "Delete Row",
+      "insert_column_left": "Insert Column Left",
+      "insert_column_right": "Insert Column Right",
+      "rename_column": "Rename Column",
+      "duplicate_column": "Duplicate Column",
+      "delete_column": "Delete Column",
+      "copy": "Copy",
+      "paste": "Paste",
+      "clear": "Clear Content"
+    },
+    "tabs": {
+      "new_tab_prefix": "Table"
+    },
+    "placeholders": {
+      "ccl_expression": "CCL Expression",
+      "variable_name": "Variable Name",
+      "file_path": "File Path",
+      "tab_name": "Tab Name"
+    },
+    "defaults": {
+      "new_variable_name": "New Variable"
+    }
+  },
+  "dialog_defaults": {
+    "alert_title": "Alert",
+    "confirm_title": "Confirm",
+    "input_title": "Input",
+    "confirm_button": "OK",
+    "cancel_button": "Cancel"
+  },
+  "dialogs": {
+    "add_variable": {
+      "title": "Add Variable",
+      "message": "Please enter variable name:",
+      "placeholder": "Variable name",
+      "confirm": "Add",
+      "cancel": "Cancel"
+    },
+    "add_row": {
+      "title": "Add Row",
+      "message": "Are you sure you want to add a row?",
+      "confirm": "Add",
+      "cancel": "Cancel"
+    },
+    "create_table_failed": {
+      "title": "Creation Failed",
+      "message": "Unable to create table"
+    },
+    "save_as": {
+      "title": "Save As",
+      "message": "Please choose save location and filename"
+    },
+    "export": {
+      "title": "Export Table",
+      "message": "Please choose export format and location",
+      "formats": {
+        "csv": "CSV File (*.csv)",
+        "json": "JSON File (*.json)",
+        "excel": "Excel File (*.xlsx)"
+      }
+    }
+  },
+  "file_operations": {
+    "project_file": "Insyra Project File (*.isr)",
+    "unsaved_changes": "Unsaved changes",
+    "save_before_close": "Do you want to save the project before closing?"
   }
 }

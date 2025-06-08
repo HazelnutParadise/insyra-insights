@@ -18,6 +18,14 @@ export interface TableData {
   rows: Row[];
 }
 
+// 統計數據接口
+export interface TableStats {
+  total_rows: string;
+  total_variables: string;
+  total_cells: string;
+  numeric_variables: string;
+}
+
 // 儲存格編輯狀態
 export interface EditingState {
   tableName: string;
