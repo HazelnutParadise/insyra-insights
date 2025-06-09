@@ -123,7 +123,7 @@ func (s *DataTableService) UpdateCellValue(tableName string, rowIndex int, colIn
 	}
 
 	// 處理特殊值：空字符串轉換為 nil
-	var cellValue interface{}
+	var cellValue any
 	if value == "" {
 		cellValue = nil
 	} else {
@@ -328,7 +328,7 @@ func (s *DataTableService) GetTableDataByID(tableID int) map[string]any {
 
 	// 獲取所有欄名
 	var columns []map[string]any
-	for i := 0; i < colCount; i++ {
+	for i := range colCount {
 		col := dt.GetColByNumber(i)
 		columns = append(columns, map[string]any{
 			"id":   i,
