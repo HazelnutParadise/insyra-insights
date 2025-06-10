@@ -1938,106 +1938,73 @@
     cursor: pointer;
     transition: all var(--transition-standard);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
     position: relative;
     overflow: hidden;
+    /* 新擬物風格基礎樣式 */
+    background: var(--background-color);
+    box-shadow:
+      6px 6px 12px rgba(0, 0, 0, 0.15),
+      -6px -6px 12px rgba(255, 255, 255, 0.8);
+    /* 移除點擊時的框框 */
+    outline: none;
   }
 
-  .toolbar-button::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.3),
-      transparent
-    );
-    transition: left 0.5s ease;
+  .toolbar-button:focus {
+    outline: none;
   }
 
-  .toolbar-button:hover::before {
-    left: 100%;
+  .toolbar-button:focus-visible {
+    outline: none;
+  }
+
+  .toolbar-button:active {
+    /* 輕量的凹陷效果 */
+    transform: translateY(1px);
+    box-shadow:
+      inset 2px 2px 4px rgba(0, 0, 0, 0.1),
+      inset -2px -2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 0 6px rgba(0, 0, 0, 0.08);
+    transition: all 0.1s ease;
   }
 
   .open-button {
     background: linear-gradient(
       135deg,
-      rgba(76, 175, 80, 0.1),
-      rgba(129, 199, 132, 0.1)
+      rgba(76, 175, 80, 0.15),
+      rgba(129, 199, 132, 0.15)
     );
     color: var(--success-color);
-    border-color: rgba(76, 175, 80, 0.3);
+    border: 1px solid rgba(76, 175, 80, 0.2);
   }
 
   .save-button {
     background: linear-gradient(
       135deg,
-      rgba(33, 150, 243, 0.1),
-      rgba(100, 181, 246, 0.1)
+      rgba(33, 150, 243, 0.15),
+      rgba(100, 181, 246, 0.15)
     );
     color: var(--info-color);
-    border-color: rgba(33, 150, 243, 0.3);
+    border: 1px solid rgba(33, 150, 243, 0.2);
   }
 
   .save-as-button {
     background: linear-gradient(
       135deg,
-      rgba(171, 71, 188, 0.1),
-      /* Purple系 */ rgba(206, 147, 216, 0.1) /* Light Purple系 */
+      rgba(171, 71, 188, 0.15),
+      rgba(206, 147, 216, 0.15)
     );
-    color: #ab47bc; /* 改為較亮的紫色 */
-    border-color: rgba(171, 71, 188, 0.3); /* Purple系邊框 */
+    color: #ab47bc;
+    border: 1px solid rgba(171, 71, 188, 0.2);
   }
 
   .export-button {
     background: linear-gradient(
       135deg,
-      rgba(255, 152, 0, 0.1),
-      rgba(255, 183, 77, 0.1)
-    );
-    color: var(--warning-color);
-    border-color: rgba(255, 152, 0, 0.3);
-  }
-
-  .toolbar-button:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-2);
-  }
-
-  .open-button:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(76, 175, 80, 0.15),
-      rgba(129, 199, 132, 0.15)
-    );
-  }
-
-  .save-button:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(33, 150, 243, 0.15),
-      rgba(100, 181, 246, 0.15)
-    );
-  }
-
-  .save-as-button:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(171, 71, 188, 0.15),
-      /* Purple系 */ rgba(206, 147, 216, 0.15) /* Light Purple系 */
-    );
-  }
-
-  .export-button:hover {
-    background: linear-gradient(
-      135deg,
       rgba(255, 152, 0, 0.15),
       rgba(255, 183, 77, 0.15)
     );
+    color: var(--warning-color);
+    border: 1px solid rgba(255, 152, 0, 0.2);
   }
 
   /* 標籤名稱編輯樣式 */
