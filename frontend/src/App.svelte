@@ -1983,6 +1983,16 @@
     border-color: rgba(33, 150, 243, 0.3);
   }
 
+  .save-as-button {
+    background: linear-gradient(
+      135deg,
+      rgba(171, 71, 188, 0.1),
+      /* Purple系 */ rgba(206, 147, 216, 0.1) /* Light Purple系 */
+    );
+    color: #ab47bc; /* 改為較亮的紫色 */
+    border-color: rgba(171, 71, 188, 0.3); /* Purple系邊框 */
+  }
+
   .export-button {
     background: linear-gradient(
       135deg,
@@ -2011,6 +2021,14 @@
       135deg,
       rgba(33, 150, 243, 0.15),
       rgba(100, 181, 246, 0.15)
+    );
+  }
+
+  .save-as-button:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(171, 71, 188, 0.15),
+      /* Purple系 */ rgba(206, 147, 216, 0.15) /* Light Purple系 */
     );
   }
 

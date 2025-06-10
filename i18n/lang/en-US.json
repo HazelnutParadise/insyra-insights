@@ -77,7 +77,8 @@
       "selected_column": "Column {column}",
       "cell_position": "{column}{row}",
       "table_placeholder": "Table is empty, please add data",
-      "update_failed": "Failed to update data"
+      "update_failed": "Failed to update data",
+      "zoom": "Zoom"
     },
     "context_menu": {
       "insert_row_above": "Insert Row Above",

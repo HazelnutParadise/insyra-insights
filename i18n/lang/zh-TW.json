@@ -77,7 +77,8 @@
       "selected_column": "{column} 變項",
       "cell_position": "{column}{row}",
       "table_placeholder": "資料表為空，請新增資料",
-      "update_failed": "更新資料失敗"
+      "update_failed": "更新資料失敗",
+      "zoom": "縮放"
     },
     "context_menu": {
       "insert_row_above": "在上方插入列",

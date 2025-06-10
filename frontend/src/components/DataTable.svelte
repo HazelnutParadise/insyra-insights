@@ -14,6 +14,9 @@
   export let tableID: number;
   export let tableKey: number = 0; // 用於強制重新載入的 key
 
+  // 新增：表格縮放比例
+  let tableScale = 1;
+
   // 創建事件分發器
   const dispatch = createEventDispatcher();
 
@@ -45,6 +48,7 @@
       "ui.table.selected_column",
       "ui.table.cell_position",
       "ui.table.update_failed",
+      "ui.table.zoom", // 新增翻譯鍵
       "ui.context_menu.insert_row_above",
       "ui.context_menu.insert_row_below",
       "ui.context_menu.duplicate_row",
@@ -721,7 +725,10 @@
     <div class="error">{error}</div>
   {:else if tableData}
     <div class="table-wrapper">
-      <table class="data-table">
+      <table
+        class="data-table"
+        style="transform: scale({tableScale}); transform-origin: top left;"
+      >
         <thead>
           <!-- 欄位索引行 (A, B, C, ...) -->
           <tr>
@@ -845,12 +852,24 @@
         </tbody>
       </table>
     </div>
-    {#if selectedCellContent}
+    <div class="table-controls">
       <div class="selected-content">
         <strong>{texts["ui.table.selected_content"] || "選中內容"}:</strong>
         {selectedCellContent}
       </div>
-    {/if}
+      <div class="zoom-control">
+        <label for="table-zoom">{texts["ui.table.zoom"] || "縮放"}:</label>
+        <input
+          type="range"
+          id="table-zoom"
+          min="0.5"
+          max="2"
+          step="0.1"
+          bind:value={tableScale}
+        />
+        <span>{Math.round(tableScale * 100)}%</span>
+      </div>
+    </div>
   {:else}
     <div class="no-data">{texts["ui.table.no_data"] || "無資料可顯示"}</div>
   {/if}
@@ -872,7 +891,7 @@
   .data-table-container {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: hidden; /* 改為 hidden，讓 table-wrapper 處理滾動 */
     display: flex;
     flex-direction: column;
     font-family:
@@ -949,7 +968,7 @@
   }
   .table-wrapper {
     flex: 1;
-    overflow: auto;
+    overflow: auto; /* 確保 wrapper 可以滾動 */
     margin: var(--spacing-sm);
     border-radius: var(--radius-medium);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
@@ -963,7 +982,8 @@
     border-spacing: 0;
     table-layout: fixed;
     background: transparent;
-    min-width: max-content;
+    min-width: max-content; /* 確保表格內容不會被過度壓縮 */
+    /* transform-origin: top left; */ /* 已內聯設定 */
   }
 
   th,
@@ -1205,24 +1225,125 @@
       0 4px 12px rgba(25, 118, 210, 0.4);
   }
 
-  .selected-content {
-    padding: var(--spacing-md);
-    background: linear-gradient(
-      135deg,
-      rgba(248, 250, 252, 0.9),
-      rgba(241, 245, 249, 0.8)
-    );
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    border-radius: 0 0 var(--radius-large) var(--radius-large);
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(248, 250, 252, 0.9);
   }
 
-  .selected-content strong {
-    color: var(--primary-color);
-    font-weight: 600;
+  .selected-content {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: var(--spacing-md);
+  }
+
+  .zoom-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .zoom-control label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .zoom-control input[type="range"] {
+    width: 200px; /* 增加寬度以便更精確控制 */
+    -webkit-appearance: none; /* 移除預設樣式 (Chrome, Safari, Opera) */
+    appearance: none;
+    height: 10px; /* 軌道高度 */
+    background: #e0e5ec; /* 新擬物背景色 */
+    border-radius: 5px;
+    outline: none;
+    box-shadow:
+      inset 3px 3px 6px #b8bec7,
+      /* 內陰影 - 暗 */ inset -3px -3px 6px #ffffff; /* 內陰影 - 亮 */
+    transition: box-shadow 0.15s ease-in-out; /* 添加過渡效果 */
+  }
+
+  /* 確保軌道在 active 狀態下樣式不變 */
+  .zoom-control input[type="range"]:active {
+    background: #e0e5ec; /* 保持背景不變 */
+    box-shadow:
+      inset 3px 3px 6px #b8bec7,
+      inset -3px -3px 6px #ffffff; /* 保持陰影不變 */
+  }
+
+  /* Webkit (Chrome, Safari, Opera) 瀏覽器的滑塊樣式 */
+  .zoom-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; /* 滑塊寬度 */
+    height: 20px; /* 滑塊高度 */
+    background: #e0e5ec; /* 滑塊背景色 */
+    border-radius: 50%; /* 圓形滑塊 */
+    cursor: pointer;
+    border: 1px solid #c8cdd3;
+    box-shadow:
+      3px 3px 6px #b8bec7,
+      /* 外陰影 - 暗 */ -3px -3px 6px #ffffff; /* 外陰影 - 亮 */
+    transition: background-color 0.15s ease-in-out;
+  }
+
+  .zoom-control input[type="range"]::-webkit-slider-thumb:active {
+    background-color: #d1d9e6; /* 輕微改變背景色以示選中，移除內陰影 */
+    /* box-shadow: inset 1px 1px 2px #b8bec7, inset -1px -1px 2px #ffffff; */ /* 移除此行 */
+  }
+
+  /* Mozilla Firefox 瀏覽器的滑塊樣式 */
+  .zoom-control input[type="range"]::-moz-range-thumb {
+    width: 18px; /* 滑塊寬度 */
+    height: 18px; /* 滑塊高度 */
+    background: #e0e5ec;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid #c8cdd3;
+    box-shadow:
+      3px 3px 6px #b8bec7,
+      -3px -3px 6px #ffffff;
+    transition: background-color 0.15s ease-in-out;
+  }
+
+  .zoom-control input[type="range"]::-moz-range-thumb:active {
+    background-color: #d1d9e6; /* 輕微改變背景色以示選中，移除內陰影 */
+    /* box-shadow: inset 1px 1px 2px #b8bec7, inset -1px -1px 2px #ffffff; */ /* 移除此行 */
+  }
+
+  /* Mozilla Firefox 瀏覽器的軌道樣式 (可選，如果需要更細緻的控制) */
+  .zoom-control input[type="range"]::-moz-range-track {
+    width: 100%;
+    height: 10px;
+    background: #e0e5ec;
+    border-radius: 5px;
+    box-shadow:
+      inset 3px 3px 6px #b8bec7,
+      inset -3px -3px 6px #ffffff;
+    border: none; /* 確保無邊框影響 */
+  }
+
+  /* 確保 Firefox 軌道在 active 狀態下樣式不變 */
+  .zoom-control input[type="range"]:active::-moz-range-track {
+    background: #e0e5ec; /* 保持背景不變 */
+    box-shadow:
+      inset 3px 3px 6px #b8bec7,
+      inset -3px -3px 6px #ffffff; /* 保持陰影不變 */
+  }
+
+  .zoom-control span {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    /* min-width: 35px; */ /* 移除 min-width */
+    width: 45px; /* 設定固定寬度以容納三位數百分比 */
+    text-align: right;
+    display: inline-block; /* 確保寬度生效 */
   }
 
   /* 滾動條樣式 */
