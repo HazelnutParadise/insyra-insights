@@ -243,14 +243,18 @@
       document.removeEventListener("keydown", handleGlobalKeyDown);
       document.removeEventListener("keyup", handleGlobalKeyUp);
     };
-  }); // 更新選中內容顯示的函數
+  });
+
+  // 更新選中內容顯示的函數
   function updateSelectedCellContent() {
     if (!tableData) return;
 
     if (
       selectionMode === "range" &&
       rangeSelectStartRow >= 0 &&
-      rangeSelectStartCol >= 0
+      rangeSelectStartCol >= 0 &&
+      rangeSelectEndRow >= 0 &&
+      rangeSelectEndCol >= 0
     ) {
       const startRow = Math.min(rangeSelectStartRow, rangeSelectEndRow);
       const endRow = Math.max(rangeSelectStartRow, rangeSelectEndRow);
@@ -368,8 +372,11 @@
     if (!tableData) return;
 
     let dataToCopy: string[][] = [];
-
-    if (selectionMode === "range" && rangeSelectStartRow >= 0) {
+    if (
+      selectionMode === "range" &&
+      rangeSelectStartRow >= 0 &&
+      rangeSelectEndRow >= 0
+    ) {
       // 複製選取範圍
       const startRow = Math.min(rangeSelectStartRow, rangeSelectEndRow);
       const endRow = Math.max(rangeSelectStartRow, rangeSelectEndRow);
@@ -1076,6 +1083,18 @@
         break;
       case "duplicateRow":
         console.log(`複製第 ${context.rowIndex || context.index} 行`);
+        // 執行複製整行操作
+        if (context.rowIndex !== undefined || context.index !== undefined) {
+          const rowIndex = context.rowIndex || context.index;
+          // 先設置選取狀態為該行
+          selectionMode = "row";
+          selectedRow = rowIndex;
+          selectedCol = -1;
+          selectedRowRange = new Set([rowIndex]);
+          selectedColRange = new Set();
+          // 然後執行複製
+          handleCopy();
+        }
         break;
       case "deleteRow":
         console.log(`刪除第 ${context.rowIndex || context.index} 行`);
@@ -1092,6 +1111,18 @@
         break;
       case "duplicateColumn":
         console.log(`複製第 ${context.colIndex || context.index} 欄`);
+        // 執行複製整欄操作
+        if (context.colIndex !== undefined || context.index !== undefined) {
+          const colIndex = context.colIndex || context.index;
+          // 先設置選取狀態為該欄
+          selectionMode = "column";
+          selectedCol = colIndex;
+          selectedRow = -1;
+          selectedColRange = new Set([colIndex]);
+          selectedRowRange = new Set();
+          // 然後執行複製
+          handleCopy();
+        }
         break;
       case "deleteColumn":
         console.log(`刪除第 ${context.colIndex || context.index} 欄`);
@@ -1214,6 +1245,8 @@
                   selectionMode === "range" &&
                   rangeSelectStartRow >= 0 &&
                   rangeSelectStartCol >= 0 &&
+                  rangeSelectEndRow >= 0 &&
+                  rangeSelectEndCol >= 0 &&
                   rowIndex >=
                     Math.min(rangeSelectStartRow, rangeSelectEndRow) &&
                   rowIndex <=
