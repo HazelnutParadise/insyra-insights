@@ -5,6 +5,8 @@
     GetTableDataByID,
     UpdateCellValueByID,
     UpdateColumnNameByID,
+    AddRowByID,
+    AddColumnByID,
     GetText,
   } from "../../wailsjs/go/main/App";
   import ContextMenu from "./ContextMenu.svelte";
@@ -421,7 +423,6 @@
       console.log("已複製資料:", dataToCopy);
     }
   }
-
   // 貼上功能
   async function handlePaste() {
     if (!tableData || clipboardData.length === 0) return;
@@ -436,14 +437,67 @@
         let startRow = selectedRow >= 0 ? selectedRow : 0;
         let startCol = selectedCol >= 0 ? selectedCol : 0;
 
+        // 計算需要的最大行數和列數
+        const requiredRows = startRow + clipboardData.length;
+        const requiredCols =
+          startCol + Math.max(...clipboardData.map((row) => row.length)); // 檢查是否需要添加列
+        const currentColCount = tableData.columns.length;
+        if (requiredCols > currentColCount) {
+          const colsToAdd = requiredCols - currentColCount;
+          console.log(`需要添加 ${colsToAdd} 個列`);
+
+          for (let i = 0; i < colsToAdd; i++) {
+            const newColName = `Column${currentColCount + i + 1}`;
+            const success = await AddColumnByID(tableID, newColName);
+            if (!success) {
+              console.error(`添加列 ${newColName} 失敗`);
+              break;
+            }
+          }
+
+          // 重新載入資料以獲取新的列結構
+          await loadTableData();
+          // 確保 tableData 已更新
+          if (!tableData) {
+            error = "擴張表格後無法載入資料";
+            return;
+          }
+        }
+
+        // 檢查是否需要添加行
+        const currentRowCount = tableData.rows.length;
+        if (requiredRows > currentRowCount) {
+          const rowsToAdd = requiredRows - currentRowCount;
+          console.log(`需要添加 ${rowsToAdd} 個行`);
+
+          for (let i = 0; i < rowsToAdd; i++) {
+            const success = await AddRowByID(tableID);
+            if (!success) {
+              console.error(`添加行失敗`);
+              break;
+            }
+          }
+
+          // 重新載入資料以獲取新的行結構
+          await loadTableData();
+          // 確保 tableData 已更新
+          if (!tableData) {
+            error = "擴張表格後無法載入資料";
+            return;
+          }
+        }
+
+        // 現在執行貼上操作
         for (let rowOffset = 0; rowOffset < clipboardData.length; rowOffset++) {
           const targetRow = startRow + rowOffset;
-          if (targetRow >= tableData.rows.length) break;
+          // 確保目標行存在（應該在上面的擴張中已經處理）
+          if (targetRow >= tableData.rows.length) continue;
 
           const rowData = clipboardData[rowOffset];
           for (let colOffset = 0; colOffset < rowData.length; colOffset++) {
             const targetCol = startCol + colOffset;
-            if (targetCol >= tableData.columns.length) break;
+            // 確保目標列存在（應該在上面的擴張中已經處理）
+            if (targetCol >= tableData.columns.length) continue;
 
             const column = tableData.columns[targetCol];
             if (column) {
