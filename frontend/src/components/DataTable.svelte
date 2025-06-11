@@ -86,16 +86,27 @@
     colName: "",
     value: "",
     isEditing: false,
-  };
-  // 選中狀態
+  }; // 選中狀態
   let selectedRow = -1;
   let selectedCol = -1;
   let selectedCellContent = "";
 
-  // 選擇模式：'cell' | 'row' | 'column'
+  // 選擇模式：'cell' | 'row' | 'column' | 'range'
   let selectionMode = "cell";
   let selectedRowRange = new Set(); // 選中的行範圍
   let selectedColRange = new Set(); // 選中的列範圍
+
+  // 範圍選取狀態
+  let rangeSelectStartRow = -1;
+  let rangeSelectStartCol = -1;
+  let rangeSelectEndRow = -1;
+  let rangeSelectEndCol = -1;
+  let isSelectingRange = false;
+  let isDragging = false;
+
+  // 剪貼簿資料
+  let clipboardData: string[][] = [];
+  let clipboardType: "copy" | "cut" | null = null;
 
   // 右鍵菜單狀態
   let contextMenuVisible = false;
@@ -134,7 +145,6 @@
       { id: "insertColumnRight", label: "", icon: "➡️" },
     ],
   };
-
   // 更新菜單配置的翻譯文字
   function updateMenuLabels() {
     // Row menu
@@ -159,9 +169,10 @@
     contextMenuConfig.column[6].label =
       texts["ui.context_menu.delete_column"] || "刪除變項";
 
-    // Cell menu
+    // Cell menu - 動態更新貼上選項狀態
     contextMenuConfig.cell[0].label = texts["ui.context_menu.copy"] || "複製";
     contextMenuConfig.cell[1].label = texts["ui.context_menu.paste"] || "貼上";
+    contextMenuConfig.cell[1].disabled = clipboardData.length === 0; // 動態禁用貼上
     contextMenuConfig.cell[3].label =
       texts["ui.context_menu.clear"] || "清除內容";
     contextMenuConfig.cell[5].label =
@@ -194,11 +205,46 @@
       updateSelectedCellContent();
     }
   }
-  // 更新選中內容顯示的函數
+  onMount(async () => {
+    lastTableID = tableID;
+    lastTableKey = tableKey;
+
+    // 載入翻譯文字
+    await loadTexts();
+    updateMenuLabels();
+
+    await loadTableData(); // 添加文檔點擊事件監聽器
+    document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("mouseup", handleGlobalMouseUp);
+
+    // 添加鍵盤事件監聽器
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    document.addEventListener("keyup", handleGlobalKeyUp);
+
+    return () => {
+      // 清理事件監聽器
+      document.removeEventListener("click", handleDocumentClick);
+      document.removeEventListener("mouseup", handleGlobalMouseUp);
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+      document.removeEventListener("keyup", handleGlobalKeyUp);
+    };
+  }); // 更新選中內容顯示的函數
   function updateSelectedCellContent() {
     if (!tableData) return;
 
-    if (selectionMode === "row" && selectedRow >= 0) {
+    if (
+      selectionMode === "range" &&
+      rangeSelectStartRow >= 0 &&
+      rangeSelectStartCol >= 0
+    ) {
+      const startRow = Math.min(rangeSelectStartRow, rangeSelectEndRow);
+      const endRow = Math.max(rangeSelectStartRow, rangeSelectEndRow);
+      const startCol = Math.min(rangeSelectStartCol, rangeSelectEndCol);
+      const endCol = Math.max(rangeSelectStartCol, rangeSelectEndCol);
+      const rowCount = endRow - startRow + 1;
+      const colCount = endCol - startCol + 1;
+      selectedCellContent = `已選取 ${rowCount} 行 × ${colCount} 欄 (${rowCount * colCount} 個儲存格)`;
+    } else if (selectionMode === "row" && selectedRow >= 0) {
       selectedCellContent = (
         texts["ui.table.selected_row"] || "第 {row} 列"
       ).replace("{row}", (selectedRow + 1).toString());
@@ -224,6 +270,202 @@
       selectedCellContent = "";
     }
   }
+
+  // 全域鍵盤事件處理
+  function handleGlobalKeyDown(event: KeyboardEvent) {
+    // 如果在編輯狀態，不處理快捷鍵
+    if (editingState.isEditing) return;
+
+    // Ctrl/Cmd + C 複製
+    if ((event.ctrlKey || event.metaKey) && event.key === "c") {
+      event.preventDefault();
+      handleCopy();
+    }
+    // Ctrl/Cmd + V 貼上
+    else if ((event.ctrlKey || event.metaKey) && event.key === "v") {
+      event.preventDefault();
+      handlePaste();
+    }
+    // Escape 清除選取
+    else if (event.key === "Escape") {
+      clearSelection();
+    }
+    // Shift 按下開始範圍選取模式
+    else if (event.key === "Shift" && !isSelectingRange) {
+      if (selectedRow >= 0 && selectedCol >= 0) {
+        startRangeSelection(selectedRow, selectedCol);
+      }
+    }
+  }
+
+  function handleGlobalKeyUp(event: KeyboardEvent) {
+    // Shift 放開結束範圍選取模式
+    if (event.key === "Shift" && isSelectingRange) {
+      endRangeSelection();
+    }
+  }
+
+  // 開始範圍選取
+  function startRangeSelection(row: number, col: number) {
+    isSelectingRange = true;
+    rangeSelectStartRow = row;
+    rangeSelectStartCol = col;
+    rangeSelectEndRow = row;
+    rangeSelectEndCol = col;
+    selectionMode = "range";
+  }
+
+  // 結束範圍選取
+  function endRangeSelection() {
+    isSelectingRange = false;
+  }
+
+  // 更新範圍選取
+  function updateRangeSelection(row: number, col: number) {
+    if (isSelectingRange) {
+      rangeSelectEndRow = row;
+      rangeSelectEndCol = col;
+      selectionMode = "range";
+    }
+  }
+
+  // 清除選取
+  function clearSelection() {
+    selectionMode = "cell";
+    selectedRow = -1;
+    selectedCol = -1;
+    selectedRowRange = new Set();
+    selectedColRange = new Set();
+    rangeSelectStartRow = -1;
+    rangeSelectStartCol = -1;
+    rangeSelectEndRow = -1;
+    rangeSelectEndCol = -1;
+    isSelectingRange = false;
+  }
+
+  // 複製功能
+  function handleCopy() {
+    if (!tableData) return;
+
+    let dataToCopy: string[][] = [];
+
+    if (selectionMode === "range" && rangeSelectStartRow >= 0) {
+      // 複製選取範圍
+      const startRow = Math.min(rangeSelectStartRow, rangeSelectEndRow);
+      const endRow = Math.max(rangeSelectStartRow, rangeSelectEndRow);
+      const startCol = Math.min(rangeSelectStartCol, rangeSelectEndCol);
+      const endCol = Math.max(rangeSelectStartCol, rangeSelectEndCol);
+
+      for (let row = startRow; row <= endRow; row++) {
+        const rowData: string[] = [];
+        for (let col = startCol; col <= endCol; col++) {
+          const column = tableData.columns[col];
+          if (column && tableData.rows[row]) {
+            const cellValue = tableData.rows[row].cells[column.name];
+            rowData.push(formatCellValue(cellValue));
+          } else {
+            rowData.push("");
+          }
+        }
+        dataToCopy.push(rowData);
+      }
+    } else if (
+      selectionMode === "cell" &&
+      selectedRow >= 0 &&
+      selectedCol >= 0
+    ) {
+      // 複製單一儲存格
+      const column = tableData.columns[selectedCol];
+      if (column && tableData.rows[selectedRow]) {
+        const cellValue = tableData.rows[selectedRow].cells[column.name];
+        dataToCopy = [[formatCellValue(cellValue)]];
+      }
+    } else if (selectionMode === "row" && selectedRow >= 0) {
+      // 複製整行
+      const rowData: string[] = [];
+      for (let col = 0; col < tableData.columns.length; col++) {
+        const column = tableData.columns[col];
+        if (column && tableData.rows[selectedRow]) {
+          const cellValue = tableData.rows[selectedRow].cells[column.name];
+          rowData.push(formatCellValue(cellValue));
+        } else {
+          rowData.push("");
+        }
+      }
+      dataToCopy = [rowData];
+    } else if (selectionMode === "column" && selectedCol >= 0) {
+      // 複製整欄
+      const column = tableData.columns[selectedCol];
+      if (column) {
+        for (let row = 0; row < tableData.rows.length; row++) {
+          if (tableData.rows[row]) {
+            const cellValue = tableData.rows[row].cells[column.name];
+            dataToCopy.push([formatCellValue(cellValue)]);
+          } else {
+            dataToCopy.push([""]);
+          }
+        }
+      }
+    }
+
+    if (dataToCopy.length > 0) {
+      clipboardData = dataToCopy;
+      clipboardType = "copy";
+
+      // 複製到系統剪貼簿
+      const textData = dataToCopy.map((row) => row.join("\t")).join("\n");
+      navigator.clipboard.writeText(textData).catch((err) => {
+        console.warn("無法複製到系統剪貼簿:", err);
+      });
+
+      console.log("已複製資料:", dataToCopy);
+    }
+  }
+
+  // 貼上功能
+  async function handlePaste() {
+    if (!tableData || clipboardData.length === 0) return;
+
+    try {
+      if (editingState.isEditing) {
+        // 在編輯狀態時，將所有內容插入同一格
+        const allText = clipboardData.map((row) => row.join(" ")).join(" ");
+        editingState.value += allText;
+      } else {
+        // 不在編輯狀態時，自動溢出貼上
+        let startRow = selectedRow >= 0 ? selectedRow : 0;
+        let startCol = selectedCol >= 0 ? selectedCol : 0;
+
+        for (let rowOffset = 0; rowOffset < clipboardData.length; rowOffset++) {
+          const targetRow = startRow + rowOffset;
+          if (targetRow >= tableData.rows.length) break;
+
+          const rowData = clipboardData[rowOffset];
+          for (let colOffset = 0; colOffset < rowData.length; colOffset++) {
+            const targetCol = startCol + colOffset;
+            if (targetCol >= tableData.columns.length) break;
+
+            const column = tableData.columns[targetCol];
+            if (column) {
+              const processedValue = parseInputValue(rowData[colOffset]);
+              await UpdateCellValueByID(
+                tableID,
+                targetRow,
+                targetCol,
+                processedValue
+              );
+            }
+          }
+        }
+
+        // 重新載入資料
+        await loadTableData();
+      }
+    } catch (err) {
+      error = `貼上失敗: ${err}`;
+    }
+  }
+
   onMount(async () => {
     lastTableID = tableID;
     lastTableKey = tableKey;
@@ -312,9 +554,31 @@
       numeric_variables: numericCols.toString(),
     };
   } // 儲存格點擊處理
-  function handleCellClick(rowIndex: number, colIndex: number, value: string) {
+  function handleCellClick(
+    rowIndex: number,
+    colIndex: number,
+    value: string,
+    event?: Event
+  ) {
     // 如果正在雙擊過程中，忽略點擊事件
     if (doubleClickInProgress) {
+      return;
+    } // 檢查是否按住 Shift 鍵進行範圍選取
+    if (
+      event &&
+      "shiftKey" in event &&
+      (event as MouseEvent).shiftKey &&
+      selectedRow >= 0 &&
+      selectedCol >= 0
+    ) {
+      startRangeSelection(selectedRow, selectedCol);
+      updateRangeSelection(rowIndex, colIndex);
+      return;
+    }
+
+    // 如果正在選取範圍且按住 Shift
+    if (isSelectingRange) {
+      updateRangeSelection(rowIndex, colIndex);
       return;
     }
 
@@ -337,6 +601,13 @@
       handleEditComplete();
     }
 
+    // 清除範圍選取狀態
+    isSelectingRange = false;
+    rangeSelectStartRow = -1;
+    rangeSelectStartCol = -1;
+    rangeSelectEndRow = -1;
+    rangeSelectEndCol = -1;
+
     // 更新選擇狀態為儲存格模式
     selectionMode = "cell";
     selectedRow = rowIndex;
@@ -345,7 +616,6 @@
     selectedColRange = new Set();
     // selectedCellContent 會自動由響應式語句更新
   }
-
   // 儲存格雙擊處理 (進入編輯模式)
   function handleCellDblClick(
     rowIndex: number,
@@ -395,6 +665,44 @@
     setTimeout(() => {
       doubleClickInProgress = false;
     }, 10);
+  }
+
+  // 鼠標按下處理 - 開始拖拽選取
+  function handleCellMouseDown(
+    rowIndex: number,
+    colIndex: number,
+    event: MouseEvent
+  ) {
+    if (event.button !== 0) return; // 只處理左鍵
+
+    // 如果按住 Shift，開始範圍選取
+    if (event.shiftKey && selectedRow >= 0 && selectedCol >= 0) {
+      startRangeSelection(selectedRow, selectedCol);
+      updateRangeSelection(rowIndex, colIndex);
+      return;
+    }
+
+    // 開始拖拽選取
+    isDragging = true;
+    startRangeSelection(rowIndex, colIndex);
+
+    // 防止文字選取
+    event.preventDefault();
+  }
+
+  // 鼠標放開處理
+  function handleCellMouseUp() {
+    if (isDragging) {
+      isDragging = false;
+      endRangeSelection();
+    }
+  }
+
+  // 鼠標進入處理
+  function handleCellMouseEnter(rowIndex: number, colIndex: number) {
+    if (isDragging || isSelectingRange) {
+      updateRangeSelection(rowIndex, colIndex);
+    }
   }
 
   // 欄位標題點擊處理
@@ -588,8 +896,7 @@
     selectedColRange = new Set([colIndex]);
     selectedRowRange = new Set();
     // selectedCellContent 會自動由響應式語句更新
-  }
-  // 右鍵菜單處理
+  } // 右鍵菜單處理
   function handleContextMenu(
     event: MouseEvent,
     type: string,
@@ -598,6 +905,10 @@
     colIndex?: number
   ) {
     event.preventDefault();
+
+    // 更新菜單標籤（包括貼上狀態）
+    updateMenuLabels();
+
     contextMenuVisible = true;
     contextMenuX = event.clientX;
     contextMenuY = event.clientY;
@@ -648,11 +959,18 @@
   function hideContextMenu() {
     contextMenuVisible = false;
   }
-
   // 點擊文件其他地方時隱藏菜單
   function handleDocumentClick() {
     if (contextMenuVisible) {
       hideContextMenu();
+    }
+  }
+
+  // 全域鼠標放開事件處理
+  function handleGlobalMouseUp() {
+    if (isDragging) {
+      isDragging = false;
+      endRangeSelection();
     }
   } // 右鍵菜單項目處理
   async function handleContextMenuAction(event: CustomEvent) {
@@ -691,11 +1009,11 @@
         break;
       case "copy":
         console.log(`複製儲存格 (${context.rowIndex}, ${context.colIndex})`);
-        // 實現複製功能
+        handleCopy();
         break;
       case "paste":
         console.log(`貼上到儲存格 (${context.rowIndex}, ${context.colIndex})`);
-        // 實現貼上功能
+        await handlePaste();
         break;
       case "clear":
         console.log(`清除儲存格 (${context.rowIndex}, ${context.colIndex})`);
@@ -803,6 +1121,17 @@
               {#each tableData.columns as column, colIndex}
                 {@const cellValue = row.cells[column.name]}
                 {@const displayValue = formatCellValue(cellValue)}
+                {@const isInRange =
+                  selectionMode === "range" &&
+                  rangeSelectStartRow >= 0 &&
+                  rangeSelectStartCol >= 0 &&
+                  rowIndex >=
+                    Math.min(rangeSelectStartRow, rangeSelectEndRow) &&
+                  rowIndex <=
+                    Math.max(rangeSelectStartRow, rangeSelectEndRow) &&
+                  colIndex >=
+                    Math.min(rangeSelectStartCol, rangeSelectEndCol) &&
+                  colIndex <= Math.max(rangeSelectStartCol, rangeSelectEndCol)}
                 <td
                   class="cell"
                   class:selected-cell={rowIndex === selectedRow &&
@@ -813,10 +1142,14 @@
                     (selectionMode === "cell" && colIndex === selectedCol)}
                   class:selected-row-cell={rowIndex === selectedRow ||
                     (selectionMode === "row" && selectedRowRange.has(rowIndex))}
+                  class:range-selected={isInRange}
                   class:nil-value={cellValue === null ||
                     cellValue === undefined}
-                  on:click={() =>
-                    handleCellClick(rowIndex, colIndex, displayValue)}
+                  on:click={(e) =>
+                    handleCellClick(rowIndex, colIndex, displayValue, e)}
+                  on:mousedown={(e) =>
+                    handleCellMouseDown(rowIndex, colIndex, e)}
+                  on:mouseup={() => handleCellMouseUp()}
                   on:dblclick={() =>
                     handleCellDblClick(
                       rowIndex,
@@ -826,9 +1159,10 @@
                     )}
                   on:contextmenu={(e) =>
                     handleContextMenu(e, "cell", undefined, rowIndex, colIndex)}
+                  on:mouseenter={() => handleCellMouseEnter(rowIndex, colIndex)}
                   on:keydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      handleCellClick(rowIndex, colIndex, displayValue);
+                      handleCellClick(rowIndex, colIndex, displayValue, e);
                     }
                   }}
                   tabindex="0"
@@ -976,13 +1310,13 @@
     backdrop-filter: blur(10px);
     position: relative;
   }
-
   .data-table {
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
     background: transparent;
     min-width: max-content; /* 確保表格內容不會被過度壓縮 */
+    user-select: none; /* 防止文字選取 */
     /* transform-origin: top left; */ /* 已內聯設定 */
   }
 
@@ -1142,7 +1476,6 @@
       rgba(25, 118, 210, 0.06)
     ) !important;
   }
-
   .selected-cell {
     background: linear-gradient(
       135deg,
@@ -1152,6 +1485,21 @@
     box-shadow: inset 0 0 0 2px var(--primary-color) !important;
     position: relative;
     z-index: 5;
+  }
+  .range-selected {
+    background: linear-gradient(
+      135deg,
+      rgba(25, 118, 210, 0.2),
+      rgba(3, 218, 198, 0.1)
+    ) !important;
+    box-shadow: inset 0 0 0 2px rgba(25, 118, 210, 0.6) !important;
+    position: relative;
+    z-index: 4;
+  }
+
+  /* 防止在拖拽時選取文字 */
+  .cell.range-selected {
+    cursor: cell;
   }
   .selected-row .cell:not(.selected-col) {
     background: linear-gradient(
