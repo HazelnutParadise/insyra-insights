@@ -115,8 +115,7 @@
   let contextMenuX = 0;
   let contextMenuY = 0;
   let contextMenuType = ""; // 'row' | 'column' | 'cell'
-  let contextMenuContext = {}; // 上下文信息
-  // 右鍵菜單配置
+  let contextMenuContext = {}; // 上下文信息  // 右鍵菜單配置
   let contextMenuConfig: ContextMenuConfig = {
     row: [
       { id: "insertRowAbove", label: "", icon: "⬆️" },
@@ -146,6 +145,14 @@
       { id: "insertColumnLeft", label: "", icon: "⬅️" },
       { id: "insertColumnRight", label: "", icon: "➡️" },
     ],
+    range: [
+      { id: "copy", label: "", icon: "📋" },
+      { id: "paste", label: "", icon: "📄", disabled: true },
+      { id: "separator1", type: "separator" },
+      { id: "clear", label: "", icon: "🧹" },
+      { id: "separator2", type: "separator" },
+      { id: "fillSeries", label: "", icon: "📊" },
+    ],
   };
   // 更新菜單配置的翻譯文字
   function updateMenuLabels() {
@@ -169,9 +176,7 @@
     contextMenuConfig.column[4].label =
       texts["ui.context_menu.duplicate_column"] || "複製變項";
     contextMenuConfig.column[6].label =
-      texts["ui.context_menu.delete_column"] || "刪除變項";
-
-    // Cell menu - 動態更新貼上選項狀態
+      texts["ui.context_menu.delete_column"] || "刪除變項"; // Cell menu - 動態更新貼上選項狀態
     contextMenuConfig.cell[0].label = texts["ui.context_menu.copy"] || "複製";
     contextMenuConfig.cell[1].label = texts["ui.context_menu.paste"] || "貼上";
     contextMenuConfig.cell[1].disabled = clipboardData.length === 0; // 動態禁用貼上
@@ -185,6 +190,14 @@
       texts["ui.context_menu.insert_column_left"] || "在左邊插入變項";
     contextMenuConfig.cell[8].label =
       texts["ui.context_menu.insert_column_right"] || "在右邊插入變項";
+
+    // Range menu - 範圍選取菜單
+    contextMenuConfig.range[0].label = texts["ui.context_menu.copy"] || "複製";
+    contextMenuConfig.range[1].label = texts["ui.context_menu.paste"] || "貼上";
+    contextMenuConfig.range[1].disabled = clipboardData.length === 0; // 動態禁用貼上
+    contextMenuConfig.range[3].label =
+      texts["ui.context_menu.clear"] || "清除內容";
+    contextMenuConfig.range[5].label = "填充數列"; // 新功能，暫時硬編碼
   }
 
   // 防止雙擊時觸發點擊的標記
@@ -306,7 +319,6 @@
       endRangeSelection();
     }
   }
-
   // 開始範圍選取
   function startRangeSelection(row: number, col: number) {
     isSelectingRange = true;
@@ -315,6 +327,12 @@
     rangeSelectEndRow = row;
     rangeSelectEndCol = col;
     selectionMode = "range";
+
+    // 清除單格和行列選取狀態
+    selectedRow = -1;
+    selectedCol = -1;
+    selectedRowRange = new Set();
+    selectedColRange = new Set();
   }
 
   // 結束範圍選取
@@ -965,7 +983,17 @@
     contextMenuVisible = true;
     contextMenuX = event.clientX;
     contextMenuY = event.clientY;
-    contextMenuType = type;
+
+    // 如果當前是範圍選取模式，使用範圍選取的菜單
+    if (
+      selectionMode === "range" &&
+      rangeSelectStartRow >= 0 &&
+      rangeSelectStartCol >= 0
+    ) {
+      contextMenuType = "range";
+    } else {
+      contextMenuType = type;
+    }
 
     // 調試信息
     console.log("Mouse position:", {
@@ -981,29 +1009,37 @@
 
     // 設置上下文信息
     contextMenuContext = {
-      type,
+      type: contextMenuType,
       index,
       rowIndex,
       colIndex,
       selectedRow,
       selectedCol,
       tableID,
-    }; // 根據右鍵類型更新選擇狀態
-    if (type === "row" && index !== undefined) {
-      handleRowIndexClick(index);
-    } else if (type === "column" && index !== undefined) {
-      handleColumnIndexClick(index);
-    } else if (
-      type === "cell" &&
-      rowIndex !== undefined &&
-      colIndex !== undefined &&
-      tableData
-    ) {
-      const column = tableData.columns[colIndex];
-      if (column) {
-        const cellValue = tableData.rows[rowIndex]?.cells[column.name];
-        const displayValue = formatCellValue(cellValue);
-        handleCellClick(rowIndex, colIndex, displayValue);
+      rangeSelectStartRow,
+      rangeSelectStartCol,
+      rangeSelectEndRow,
+      rangeSelectEndCol,
+    };
+
+    // 根據右鍵類型更新選擇狀態 - 但如果當前是範圍選取模式，則不更新選擇狀態
+    if (selectionMode !== "range") {
+      if (type === "row" && index !== undefined) {
+        handleRowIndexClick(index);
+      } else if (type === "column" && index !== undefined) {
+        handleColumnIndexClick(index);
+      } else if (
+        type === "cell" &&
+        rowIndex !== undefined &&
+        colIndex !== undefined &&
+        tableData
+      ) {
+        const column = tableData.columns[colIndex];
+        if (column) {
+          const cellValue = tableData.rows[rowIndex]?.cells[column.name];
+          const displayValue = formatCellValue(cellValue);
+          handleCellClick(rowIndex, colIndex, displayValue);
+        }
       }
     }
   }
