@@ -445,12 +445,11 @@
         if (requiredCols > currentColCount) {
           const colsToAdd = requiredCols - currentColCount;
           console.log(`需要添加 ${colsToAdd} 個列`);
-
           for (let i = 0; i < colsToAdd; i++) {
-            const newColName = `Column${currentColCount + i + 1}`;
+            const newColName = ""; // 自動擴張的欄不要有名字
             const success = await AddColumnByID(tableID, newColName);
             if (!success) {
-              console.error(`添加列 ${newColName} 失敗`);
+              console.error(`添加列失敗`);
               break;
             }
           }
@@ -1512,15 +1511,15 @@
       rgba(25, 118, 210, 0.06)
     ) !important;
   }
-
   .selected-col {
     background: linear-gradient(
       180deg,
-      rgba(3, 218, 198, 0.25),
-      rgba(3, 218, 198, 0.15)
+      rgba(3, 218, 198, 0.35),
+      rgba(3, 218, 198, 0.2)
     ) !important;
+    box-shadow: inset 4px 0 0 rgba(3, 218, 198, 0.8) !important;
     position: relative;
-    z-index: 2;
+    z-index: 3;
   }
 
   .selected-row-cell {
@@ -1530,6 +1529,7 @@
       rgba(25, 118, 210, 0.06)
     ) !important;
   }
+
   .selected-cell {
     background: linear-gradient(
       135deg,
@@ -1540,6 +1540,7 @@
     position: relative;
     z-index: 5;
   }
+
   .range-selected {
     background: linear-gradient(
       135deg,
@@ -1549,6 +1550,20 @@
     box-shadow: inset 0 0 0 2px rgba(25, 118, 210, 0.6) !important;
     position: relative;
     z-index: 4;
+  }
+
+  /* 當整欄被選中且在範圍選取內時，保持欄位高亮但加上範圍選取的邊框 */
+  .selected-col.range-selected {
+    background: linear-gradient(
+      180deg,
+      rgba(3, 218, 198, 0.45),
+      rgba(3, 218, 198, 0.3)
+    ) !important;
+    box-shadow:
+      inset 4px 0 0 rgba(3, 218, 198, 0.8),
+      inset 0 0 0 2px rgba(25, 118, 210, 0.6) !important;
+    position: relative;
+    z-index: 6;
   }
 
   /* 防止在拖拽時選取文字 */
@@ -1561,16 +1576,6 @@
       rgba(25, 118, 210, 0.08),
       rgba(25, 118, 210, 0.04)
     ) !important;
-  }
-  .selected-col {
-    background: linear-gradient(
-      180deg,
-      rgba(3, 218, 198, 0.35),
-      rgba(3, 218, 198, 0.2)
-    ) !important;
-    box-shadow: inset 4px 0 0 rgba(3, 218, 198, 0.8) !important;
-    position: relative;
-    z-index: 3;
   }
 
   .selected-row .selected-col {
