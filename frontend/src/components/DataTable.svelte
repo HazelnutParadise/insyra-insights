@@ -122,6 +122,7 @@
       { id: "insertRowBelow", label: "", icon: "⬇️" },
       { id: "separator1", type: "separator" },
       { id: "duplicateRow", label: "", icon: "📋" },
+      { id: "paste", label: "", icon: "📄", disabled: true },
       { id: "separator2", type: "separator" },
       { id: "deleteRow", label: "", icon: "🗑️", danger: true },
     ],
@@ -131,6 +132,7 @@
       { id: "separator1", type: "separator" },
       { id: "renameColumn", label: "", icon: "✏️" },
       { id: "duplicateColumn", label: "", icon: "📋" },
+      { id: "paste", label: "", icon: "📄", disabled: true },
       { id: "separator2", type: "separator" },
       { id: "deleteColumn", label: "", icon: "🗑️", danger: true },
     ],
@@ -163,7 +165,9 @@
       texts["ui.context_menu.insert_row_below"] || "在下方插入列";
     contextMenuConfig.row[3].label =
       texts["ui.context_menu.duplicate_row"] || "複製列";
-    contextMenuConfig.row[5].label =
+    contextMenuConfig.row[4].label = texts["ui.context_menu.paste"] || "貼上";
+    contextMenuConfig.row[4].disabled = clipboardData.length === 0; // 動態禁用貼上
+    contextMenuConfig.row[6].label =
       texts["ui.context_menu.delete_row"] || "刪除列";
 
     // Column menu
@@ -175,7 +179,10 @@
       texts["ui.context_menu.rename_column"] || "重新命名變項";
     contextMenuConfig.column[4].label =
       texts["ui.context_menu.duplicate_column"] || "複製變項";
-    contextMenuConfig.column[6].label =
+    contextMenuConfig.column[5].label =
+      texts["ui.context_menu.paste"] || "貼上";
+    contextMenuConfig.column[5].disabled = clipboardData.length === 0; // 動態禁用貼上
+    contextMenuConfig.column[7].label =
       texts["ui.context_menu.delete_column"] || "刪除變項"; // Cell menu - 動態更新貼上選項狀態
     contextMenuConfig.cell[0].label = texts["ui.context_menu.copy"] || "複製";
     contextMenuConfig.cell[1].label = texts["ui.context_menu.paste"] || "貼上";
@@ -541,6 +548,101 @@
       }
     } catch (err) {
       error = `貼上失敗: ${err}`;
+    }
+  }
+
+  // 貼上到整列功能
+  async function handlePasteToRow(rowIndex: number) {
+    if (!tableData || clipboardData.length === 0) return;
+
+    try {
+      // 獲取第一行資料來貼上到指定列
+      const firstRowData = clipboardData[0];
+
+      // 確保目標列有足夠的欄位
+      const requiredCols = firstRowData.length;
+      const currentColCount = tableData.columns.length;
+      if (requiredCols > currentColCount) {
+        const colsToAdd = requiredCols - currentColCount;
+        for (let i = 0; i < colsToAdd; i++) {
+          const newColName = ""; // 自動擴張的欄不要有名字
+          const success = await AddColumnByID(tableID, newColName);
+          if (!success) {
+            console.error(`添加列失敗`);
+            break;
+          }
+        }
+        // 重新載入資料
+        await loadTableData();
+        if (!tableData) return;
+      }
+
+      // 貼上資料到指定列
+      for (let colIndex = 0; colIndex < firstRowData.length; colIndex++) {
+        if (colIndex >= tableData.columns.length) break;
+        const column = tableData.columns[colIndex];
+        if (column) {
+          const processedValue = parseInputValue(firstRowData[colIndex]);
+          await UpdateCellValueByID(
+            tableID,
+            rowIndex,
+            colIndex,
+            processedValue
+          );
+        }
+      }
+
+      // 重新載入資料
+      await loadTableData();
+    } catch (err) {
+      error = `貼上到列失敗: ${err}`;
+    }
+  }
+
+  // 貼上到整欄功能
+  async function handlePasteToColumn(colIndex: number) {
+    if (!tableData || clipboardData.length === 0) return;
+
+    try {
+      // 確保目標欄位存在
+      if (colIndex >= tableData.columns.length) return;
+
+      // 確保有足夠的列
+      const requiredRows = clipboardData.length;
+      const currentRowCount = tableData.rows.length;
+      if (requiredRows > currentRowCount) {
+        const rowsToAdd = requiredRows - currentRowCount;
+        for (let i = 0; i < rowsToAdd; i++) {
+          const success = await AddRowByID(tableID);
+          if (!success) {
+            console.error(`添加行失敗`);
+            break;
+          }
+        }
+        // 重新載入資料
+        await loadTableData();
+        if (!tableData) return;
+      }
+
+      const column = tableData.columns[colIndex];
+      if (!column) return;
+
+      // 貼上資料到指定欄位
+      for (let rowOffset = 0; rowOffset < clipboardData.length; rowOffset++) {
+        if (rowOffset >= tableData.rows.length) break;
+
+        // 取得該行剪貼簿資料的第一個值
+        const rowData = clipboardData[rowOffset];
+        const valueToSet = rowData.length > 0 ? rowData[0] : "";
+
+        const processedValue = parseInputValue(valueToSet);
+        await UpdateCellValueByID(tableID, rowOffset, colIndex, processedValue);
+      }
+
+      // 重新載入資料
+      await loadTableData();
+    } catch (err) {
+      error = `貼上到欄失敗: ${err}`;
     }
   }
 
@@ -1132,8 +1234,28 @@
         handleCopy();
         break;
       case "paste":
-        console.log(`貼上到儲存格 (${context.rowIndex}, ${context.colIndex})`);
-        await handlePaste();
+        // 根據上下文類型決定貼上方式
+        if (
+          context.type === "row" &&
+          (context.rowIndex !== undefined || context.index !== undefined)
+        ) {
+          const rowIndex = context.rowIndex || context.index;
+          console.log(`貼上到第 ${rowIndex} 列`);
+          await handlePasteToRow(rowIndex);
+        } else if (
+          context.type === "column" &&
+          (context.colIndex !== undefined || context.index !== undefined)
+        ) {
+          const colIndex = context.colIndex || context.index;
+          console.log(`貼上到第 ${colIndex} 欄`);
+          await handlePasteToColumn(colIndex);
+        } else {
+          // 預設為儲存格貼上
+          console.log(
+            `貼上到儲存格 (${context.rowIndex}, ${context.colIndex})`
+          );
+          await handlePaste();
+        }
         break;
       case "clear":
         console.log(`清除儲存格 (${context.rowIndex}, ${context.colIndex})`);
@@ -1204,6 +1326,7 @@
                 on:click={() => handleColumnHeaderClick(colIndex, column.name)}
                 on:dblclick={() =>
                   handleColumnHeaderDblClick(colIndex, column.name)}
+                on:contextmenu={(e) => handleContextMenu(e, "column", colIndex)}
               >
                 {#if editingState.isEditing && editingState.rowIndex === -1 && editingState.colIndex === colIndex}
                   <input
