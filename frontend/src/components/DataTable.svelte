@@ -579,7 +579,7 @@
 
       // 貼上資料到指定列
       for (let colIndex = 0; colIndex < firstRowData.length; colIndex++) {
-        if (colIndex >= tableData.columns.length) break;
+        if (colIndex >= tableData.columns.length) break; // Corrected syntax
         const column = tableData.columns[colIndex];
         if (column) {
           const processedValue = parseInputValue(firstRowData[colIndex]);
@@ -673,8 +673,7 @@
     lastTableID = tableID;
     lastTableKey = tableKey;
     loadTableData();
-  }
-  // 載入表格資料
+  } // 載入表格資料
   async function loadTableData() {
     // 檢查 tableID 是否有效
     if (tableID < 0) {
@@ -693,6 +692,29 @@
       if (tableData) {
         const stats = calculateStatistics(tableData);
         dispatch("statsUpdate", stats);
+
+        // 設定初始選中狀態到第一個儲存格（如果存在）
+        if (
+          tableData.rows &&
+          tableData.rows.length > 0 &&
+          tableData.columns &&
+          tableData.columns.length > 0
+        ) {
+          selectedRow = 0;
+          selectedCol = 0;
+          selectionMode = "cell";
+          selectedRowRange = new Set();
+          selectedColRange = new Set();
+          // updateSelectedCellContent 會由響應式語句自動調用
+        } else {
+          // 如果沒有資料，重置選中狀態
+          selectedRow = -1;
+          selectedCol = -1;
+          selectedCellContent = "";
+          selectionMode = "cell";
+          selectedRowRange = new Set();
+          selectedColRange = new Set();
+        }
       }
     } catch (err) {
       error = `載入資料表失敗: ${err}`;
@@ -1284,11 +1306,8 @@
   {:else if error}
     <div class="error">{error}</div>
   {:else if tableData}
-    <div class="table-wrapper">
-      <table
-        class="data-table"
-        style="transform: scale({tableScale}); transform-origin: top left;"
-      >
+    <div class="table-wrapper" style="--table-scale: {tableScale};">
+      <table class="data-table">
         <thead>
           <!-- 欄位索引行 (A, B, C, ...) -->
           <tr>
@@ -1303,7 +1322,8 @@
                     selectedColRange.has(colIndex)) ||
                   (selectionMode === "cell" && colIndex === selectedCol)}
                 on:click={() => handleColumnIndexClick(colIndex)}
-                on:contextmenu={(e) => handleContextMenu(e, "column", colIndex)}
+                on:contextmenu={(e) =>
+                  handleContextMenu(e, "column", colIndex)}
               >
                 {indexToLetters(colIndex)}
               </th>
@@ -1323,10 +1343,12 @@
                   (selectionMode === "column" &&
                     selectedColRange.has(colIndex)) ||
                   (selectionMode === "cell" && colIndex === selectedCol)}
-                on:click={() => handleColumnHeaderClick(colIndex, column.name)}
+                on:click={() =>
+                  handleColumnHeaderClick(colIndex, column.name)}
                 on:dblclick={() =>
                   handleColumnHeaderDblClick(colIndex, column.name)}
-                on:contextmenu={(e) => handleContextMenu(e, "column", colIndex)}
+                on:contextmenu={(e) =>
+                  handleContextMenu(e, "column", colIndex)}
               >
                 {#if editingState.isEditing && editingState.rowIndex === -1 && editingState.colIndex === colIndex}
                   <input
@@ -1376,7 +1398,8 @@
                     Math.max(rangeSelectStartRow, rangeSelectEndRow) &&
                   colIndex >=
                     Math.min(rangeSelectStartCol, rangeSelectEndCol) &&
-                  colIndex <= Math.max(rangeSelectStartCol, rangeSelectEndCol)}
+                  colIndex <=
+                    Math.max(rangeSelectStartCol, rangeSelectEndCol)}
                 <td
                   class="cell"
                   class:selected-cell={rowIndex === selectedRow &&
@@ -1386,7 +1409,8 @@
                       selectedColRange.has(colIndex)) ||
                     (selectionMode === "cell" && colIndex === selectedCol)}
                   class:selected-row-cell={rowIndex === selectedRow ||
-                    (selectionMode === "row" && selectedRowRange.has(rowIndex))}
+                    (selectionMode === "row" &&
+                      selectedRowRange.has(rowIndex))}
                   class:range-selected={isInRange}
                   class:nil-value={cellValue === null ||
                     cellValue === undefined}
@@ -1403,8 +1427,15 @@
                       cellValue
                     )}
                   on:contextmenu={(e) =>
-                    handleContextMenu(e, "cell", undefined, rowIndex, colIndex)}
-                  on:mouseenter={() => handleCellMouseEnter(rowIndex, colIndex)}
+                    handleContextMenu(
+                      e,
+                      "cell",
+                      undefined,
+                      rowIndex,
+                      colIndex
+                    )}
+                  on:mouseenter={() =>
+                    handleCellMouseEnter(rowIndex, colIndex)}
                   on:keydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       handleCellClick(rowIndex, colIndex, displayValue, e);
@@ -1431,6 +1462,7 @@
         </tbody>
       </table>
     </div>
+    <!-- /.table-wrapper -->
     <div class="table-controls">
       <div class="selected-content">
         <strong>{texts["ui.table.selected_content"] || "選中內容"}:</strong>
@@ -1540,13 +1572,25 @@
     color: var(--error-color);
     font-weight: 500;
   }
-
   .no-data {
     color: var(--text-secondary);
     font-style: italic;
   }
+  .table-container-scaled {
+    /* 縮放容器，確保縮放不會影響內部的 sticky positioning */
+    transform-origin: top left;
+    /* 動態調整寬度和高度以適應縮放 */
+    width: calc(100% / var(--table-scale, 1));
+    height: calc(100% / var(--table-scale, 1));
+    overflow: hidden;
+    flex: 1; /* 填充剩餘垂直空間，控制列會自動占用其需要的空間 */
+    /* 確保縮放後仍能正確顯示滾動條 */
+    min-width: 100%;
+    /* 添加過渡動畫以平滑縮放 */
+    transition: transform 0.2s ease-out;
+  }
   .table-wrapper {
-    flex: 1;
+    /* 使用 CSS 變數來控制尺寸 */
     overflow: auto; /* 確保 wrapper 可以滾動 */
     margin: var(--spacing-sm);
     border-radius: var(--radius-medium);
@@ -1554,39 +1598,51 @@
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     position: relative;
+    /* 為縮放調整容器尺寸 - 修改為自適應高度 */
+    width: calc(100% - 2 * var(--spacing-sm));
+    flex: 1; /* 讓表格區域填滿剩餘空間 */
+    /* 確保在縮放時能正確顯示內容 */
+    box-sizing: border-box;
+    /* 設定最小高度以避免被壓縮 */
+    min-height: 300px;
+    /* 使用 CSS 變數控制縮放 */
+    font-size: calc(0.9rem * var(--table-scale, 1));
   }
+
   .data-table {
     border-collapse: separate;
     border-spacing: 0;
-    table-layout: fixed;
+    table-layout: auto; /* 改為 auto 讓儲存格保持固定寬度 */
     background: transparent;
     min-width: max-content; /* 確保表格內容不會被過度壓縮 */
     user-select: none; /* 防止文字選取 */
-    /* transform-origin: top left; */ /* 已內聯設定 */
+    /* 移除 width: 100% 讓表格寬度由內容決定 */
+    width: auto;
   }
 
   th,
   td {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: calc(var(--spacing-sm) * var(--table-scale, 1)) calc(var(--spacing-md) * var(--table-scale, 1));
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
+    width: calc(140px * var(--table-scale, 1));
+    min-width: calc(140px * var(--table-scale, 1));
+    max-width: calc(140px * var(--table-scale, 1));
     border: none;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     border-right: 1px solid rgba(0, 0, 0, 0.06);
     position: relative;
     transition: all var(--transition-fast);
+    font-size: inherit;
   }
 
   .corner-cell {
     background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
+    width: calc(60px * var(--table-scale, 1));
+    min-width: calc(60px * var(--table-scale, 1));
+    max-width: calc(60px * var(--table-scale, 1));
     position: sticky;
     left: 0;
     z-index: 15;
@@ -1600,7 +1656,7 @@
   }
 
   .corner-header {
-    top: 40px;
+    top: calc(40px * var(--table-scale, 1));
   }
 
   .column-index {
@@ -1611,9 +1667,9 @@
     font-weight: 600;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 0.85rem;
+    font-size: calc(0.85rem * var(--table-scale, 1));
     letter-spacing: 0.5px;
-    height: 40px;
+    height: calc(40px * var(--table-scale, 1));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     border-bottom: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
@@ -1636,10 +1692,10 @@
       rgba(191, 219, 254, 0.8)
     );
     position: sticky;
-    top: 40px;
+    top: calc(40px * var(--table-scale, 1));
     z-index: 11;
     font-weight: 600;
-    height: 40px;
+    height: calc(40px * var(--table-scale, 1));
     color: var(--text-primary);
     backdrop-filter: blur(10px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -1662,13 +1718,13 @@
     position: sticky;
     left: 0;
     z-index: 9;
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
+    width: calc(60px * var(--table-scale, 1));
+    min-width: calc(60px * var(--table-scale, 1));
+    max-width: calc(60px * var(--table-scale, 1));
     font-weight: 600;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: calc(0.9rem * var(--table-scale, 1));
     box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
     border-right: 2px solid rgba(0, 0, 0, 0.1) !important;
   }
@@ -1688,7 +1744,7 @@
     position: relative;
     background: rgba(255, 255, 255, 0.7);
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: inherit;
   }
   .cell:hover:not(.selected-col):not(.selected-row-cell):not(.selected-cell) {
     background: rgba(25, 118, 210, 0.08);
@@ -1804,7 +1860,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    padding: var(--spacing-sm);
+    padding: calc(var(--spacing-sm) * var(--table-scale, 1));
     border: 2px solid var(--primary-color);
     border-radius: var(--radius-small);
     box-sizing: border-box;
@@ -1823,7 +1879,6 @@
       0 0 0 3px rgba(25, 118, 210, 0.2),
       0 4px 12px rgba(25, 118, 210, 0.4);
   }
-
   .table-controls {
     display: flex;
     justify-content: space-between;
@@ -1831,6 +1886,11 @@
     padding: var(--spacing-sm) var(--spacing-md);
     border-top: 1px solid rgba(0, 0, 0, 0.06);
     background: rgba(248, 250, 252, 0.9);
+    position: relative; /* 新增，為 z-index 生效 */
+    z-index: 20; /* 新增，確保在縮放內容之上 */
+    height: 60px; /* 固定高度，確保一致性 */
+    flex-shrink: 0; /* 防止被壓縮 */
+    min-height: 60px; /* 最小高度保證 */
   }
 
   .selected-content {
@@ -1894,7 +1954,6 @@
 
   .zoom-control input[type="range"]::-webkit-slider-thumb:active {
     background-color: #d1d9e6; /* 輕微改變背景色以示選中，移除內陰影 */
-    /* box-shadow: inset 1px 1px 2px #b8bec7, inset -1px -1px 2px #ffffff; */ /* 移除此行 */
   }
 
   /* Mozilla Firefox 瀏覽器的滑塊樣式 */
@@ -1912,8 +1971,8 @@
   }
 
   .zoom-control input[type="range"]::-moz-range-thumb:active {
-    background-color: #d1d9e6; /* 輕微改變背景色以示選中，移除內陰影 */
-    /* box-shadow: inset 1px 1px 2px #b8bec7, inset -1px -1px 2px #ffffff; */ /* 移除此行 */
+    /* Add a dummy property to avoid empty ruleset */
+    border: none;
   }
 
   /* Mozilla Firefox 瀏覽器的軌道樣式 (可選，如果需要更細緻的控制) */
@@ -1943,14 +2002,7 @@
     width: 45px; /* 設定固定寬度以容納三位數百分比 */
     text-align: right;
     display: inline-block; /* 確保寬度生效 */
-  }
-
-  /* 滾動條樣式 */
-  .table-wrapper::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-
+  } /* 滾動條樣式 - 根據縮放比例調整 */
   .table-wrapper::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.05);
     border-radius: var(--radius-medium);
