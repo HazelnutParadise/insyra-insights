@@ -222,7 +222,7 @@
   }
 
   // 當選擇狀態變化時即時更新選中內容顯示
-  $: if (tableData && (selectedRow >= 0 || selectedCol >= 0 || selectionMode)) {
+  $: if (tableData && (selectedRow >= 0 || selectedCol >= 0 || selectionMode || rangeSelectStartRow >= 0 || rangeSelectEndRow >= 0 || rangeSelectStartCol >= 0 || rangeSelectEndCol >= 0)) {
     if (!editingState.isEditing) {
       updateSelectedCellContent();
     }
@@ -269,7 +269,7 @@
       const endCol = Math.max(rangeSelectStartCol, rangeSelectEndCol);
       const rowCount = endRow - startRow + 1;
       const colCount = endCol - startCol + 1;
-      selectedCellContent = `已選取 ${rowCount} 行 × ${colCount} 欄 (${rowCount * colCount} 個儲存格)`;
+      selectedCellContent = `已選取 ${rowCount} 列 × ${colCount} 變項 (${rowCount * colCount} 個儲存格)`;
     } else if (selectionMode === "row" && selectedRow >= 0) {
       selectedCellContent = (
         texts["ui.table.selected_row"] || "第 {row} 列"
@@ -1475,7 +1475,7 @@
           id="table-zoom"
           min="0.5"
           max="2"
-          step="0.1"
+          step="0.01"
           bind:value={tableScale}
         />
         <span>{Math.round(tableScale * 100)}%</span>
@@ -1576,19 +1576,6 @@
     color: var(--text-secondary);
     font-style: italic;
   }
-  .table-container-scaled {
-    /* 縮放容器，確保縮放不會影響內部的 sticky positioning */
-    transform-origin: top left;
-    /* 動態調整寬度和高度以適應縮放 */
-    width: calc(100% / var(--table-scale, 1));
-    height: calc(100% / var(--table-scale, 1));
-    overflow: hidden;
-    flex: 1; /* 填充剩餘垂直空間，控制列會自動占用其需要的空間 */
-    /* 確保縮放後仍能正確顯示滾動條 */
-    min-width: 100%;
-    /* 添加過渡動畫以平滑縮放 */
-    transition: transform 0.2s ease-out;
-  }
   .table-wrapper {
     /* 使用 CSS 變數來控制尺寸 */
     overflow: auto; /* 確保 wrapper 可以滾動 */
@@ -1640,7 +1627,8 @@
 
   .corner-cell {
     background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-    width: calc(60px * var(--table-scale, 1));
+    width: calc(60px * v
+ar(--table-scale, 1));
     min-width: calc(60px * var(--table-scale, 1));
     max-width: calc(60px * var(--table-scale, 1));
     position: sticky;
