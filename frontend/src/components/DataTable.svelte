@@ -95,8 +95,8 @@
 
   // 選擇模式：'cell' | 'row' | 'column' | 'range'
   let selectionMode = "cell";
-  let selectedRowRange = new Set(); // 選中的行範圍
-  let selectedColRange = new Set(); // 選中的列範圍
+  let selectedRowRange: Set<number> = new Set(); // 選中的行範圍
+  let selectedColRange: Set<number> = new Set(); // 選中的列範圍
 
   // 範圍選取狀態
   let rangeSelectStartRow = -1;
@@ -222,7 +222,7 @@
   }
 
   // 當選擇狀態變化時即時更新選中內容顯示
-  $: if (tableData && (selectedRow >= 0 || selectedCol >= 0 || selectionMode || rangeSelectStartRow >= 0 || rangeSelectEndRow >= 0 || rangeSelectStartCol >= 0 || rangeSelectEndCol >= 0)) {
+  $: if (tableData && (selectedRow >= 0 || selectedCol >= 0 || selectionMode || rangeSelectStartRow >= 0 || rangeSelectEndRow >= 0 || rangeSelectStartCol >= 0 || rangeSelectEndCol >= 0 || selectedRowRange.size > 0 || selectedColRange.size > 0)) {
     if (!editingState.isEditing) {
       updateSelectedCellContent();
     }
@@ -270,14 +270,40 @@
       const rowCount = endRow - startRow + 1;
       const colCount = endCol - startCol + 1;
       selectedCellContent = `已選取 ${rowCount} 列 × ${colCount} 變項 (${rowCount * colCount} 個儲存格)`;
-    } else if (selectionMode === "row" && selectedRow >= 0) {
-      selectedCellContent = (
-        texts["ui.table.selected_row"] || "第 {row} 列"
-      ).replace("{row}", (selectedRow + 1).toString());
-    } else if (selectionMode === "column" && selectedCol >= 0) {
-      selectedCellContent = (
-        texts["ui.table.selected_column"] || "{column} 變項"
-      ).replace("{column}", indexToLetters(selectedCol));
+    } else if (selectionMode === "row") {
+      if (selectedRowRange.size > 1) {
+        // 多行選取
+        const rowNumbers = [...selectedRowRange].sort((a, b) => a - b).map(r => r + 1);
+        selectedCellContent = `已選取 ${selectedRowRange.size} 列: ${rowNumbers.join(', ')}`;
+      } else if (selectedRow >= 0) {
+        // 單行選取
+        selectedCellContent = (
+          texts["ui.table.selected_row"] || "第 {row} 列"
+        ).replace("{row}", (selectedRow + 1).toString());
+      } else if (selectedRowRange.size === 1) {
+        // 單行多選狀態
+        const rowIndex = [...selectedRowRange][0];
+        selectedCellContent = (
+          texts["ui.table.selected_row"] || "第 {row} 列"
+        ).replace("{row}", (rowIndex + 1).toString());
+      }
+    } else if (selectionMode === "column") {
+      if (selectedColRange.size > 1) {
+        // 多列選取
+        const colLetters = [...selectedColRange].sort((a, b) => a - b).map(c => indexToLetters(c));
+        selectedCellContent = `已選取 ${selectedColRange.size} 變項: ${colLetters.join(', ')}`;
+      } else if (selectedCol >= 0) {
+        // 單列選取
+        selectedCellContent = (
+          texts["ui.table.selected_column"] || "{column} 變項"
+        ).replace("{column}", indexToLetters(selectedCol));
+      } else if (selectedColRange.size === 1) {
+        // 單列多選狀態
+        const colIndex = [...selectedColRange][0];
+        selectedCellContent = (
+          texts["ui.table.selected_column"] || "{column} 變項"
+        ).replace("{column}", indexToLetters(colIndex));
+      }
     } else if (
       selectionMode === "cell" &&
       selectedRow >= 0 &&
@@ -1072,31 +1098,117 @@
     }
     return result;
   }
-  // 行索引點擊處理 - 選取整行
-  function handleRowIndexClick(rowIndex: number) {
+  // 行索引點擊處理 - 選取整行（支援多選）
+  function handleRowIndexClick(rowIndex: number, event?: MouseEvent) {
     if (editingState.isEditing) {
       handleEditComplete();
     }
 
-    selectionMode = "row";
-    selectedRow = rowIndex;
-    selectedCol = -1;
-    selectedRowRange = new Set([rowIndex]);
-    selectedColRange = new Set();
+    // 處理多選邏輯
+    if (event && (event.ctrlKey || event.metaKey)) {
+      // Ctrl/Cmd + 點擊：切換選取狀態
+      if (selectedRowRange.has(rowIndex)) {
+        selectedRowRange.delete(rowIndex);
+      } else {
+        selectedRowRange.add(rowIndex);
+      }
+      selectedRowRange = new Set(selectedRowRange); // 觸發響應式更新
+      
+      if (selectedRowRange.size > 0) {
+        selectionMode = "row";
+        selectedRow = -1; // 多選時不設定單一選中行
+        selectedCol = -1;
+        selectedColRange = new Set();
+      } else {
+        // 如果沒有選中任何行，回到預設狀態
+        clearSelection();
+      }
+      // 手動觸發內容更新
+      updateSelectedCellContent();
+    } else if (event && event.shiftKey && selectedRowRange.size > 0) {
+      // Shift + 點擊：範圍選取
+      const existingRows = Array.from(selectedRowRange);
+      const minRow = Math.min(...existingRows);
+      const maxRow = Math.max(...existingRows);
+      const rangeStart = Math.min(minRow, rowIndex);
+      const rangeEnd = Math.max(maxRow, rowIndex);
+      
+      selectedRowRange = new Set();
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        selectedRowRange.add(i);
+      }
+      
+      selectionMode = "row";
+      selectedRow = -1;
+      selectedCol = -1;
+      selectedColRange = new Set();
+      // 手動觸發內容更新
+      updateSelectedCellContent();
+    } else {
+      // 普通點擊：單一選取
+      selectionMode = "row";
+      selectedRow = rowIndex;
+      selectedCol = -1;
+      selectedRowRange = new Set([rowIndex]);
+      selectedColRange = new Set();
+    }
     // selectedCellContent 會自動由響應式語句更新
   }
 
-  // 列索引點擊處理 - 選取整列
-  function handleColumnIndexClick(colIndex: number) {
+  // 列索引點擊處理 - 選取整列（支援多選）
+  function handleColumnIndexClick(colIndex: number, event?: MouseEvent) {
     if (editingState.isEditing) {
       handleEditComplete();
     }
 
-    selectionMode = "column";
-    selectedCol = colIndex;
-    selectedRow = -1;
-    selectedColRange = new Set([colIndex]);
-    selectedRowRange = new Set();
+    // 處理多選邏輯
+    if (event && (event.ctrlKey || event.metaKey)) {
+      // Ctrl/Cmd + 點擊：切換選取狀態
+      if (selectedColRange.has(colIndex)) {
+        selectedColRange.delete(colIndex);
+      } else {
+        selectedColRange.add(colIndex);
+      }
+      selectedColRange = new Set(selectedColRange); // 觸發響應式更新
+      
+      if (selectedColRange.size > 0) {
+        selectionMode = "column";
+        selectedCol = -1; // 多選時不設定單一選中列
+        selectedRow = -1;
+        selectedRowRange = new Set();
+      } else {
+        // 如果沒有選中任何列，回到預設狀態
+        clearSelection();
+      }
+      // 手動觸發內容更新
+      updateSelectedCellContent();
+    } else if (event && event.shiftKey && selectedColRange.size > 0) {
+      // Shift + 點擊：範圍選取
+      const existingCols = Array.from(selectedColRange);
+      const minCol = Math.min(...existingCols);
+      const maxCol = Math.max(...existingCols);
+      const rangeStart = Math.min(minCol, colIndex);
+      const rangeEnd = Math.max(maxCol, colIndex);
+      
+      selectedColRange = new Set();
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        selectedColRange.add(i);
+      }
+      
+      selectionMode = "column";
+      selectedCol = -1;
+      selectedRow = -1;
+      selectedRowRange = new Set();
+      // 手動觸發內容更新
+      updateSelectedCellContent();
+    } else {
+      // 普通點擊：單一選取
+      selectionMode = "column";
+      selectedCol = colIndex;
+      selectedRow = -1;
+      selectedColRange = new Set([colIndex]);
+      selectedRowRange = new Set();
+    }
     // selectedCellContent 會自動由響應式語句更新
   } // 右鍵菜單處理
   function handleContextMenu(
@@ -1321,7 +1433,7 @@
                   (selectionMode === "column" &&
                     selectedColRange.has(colIndex)) ||
                   (selectionMode === "cell" && colIndex === selectedCol)}
-                on:click={() => handleColumnIndexClick(colIndex)}
+                on:click={(e) => handleColumnIndexClick(colIndex, e)}
                 on:contextmenu={(e) =>
                   handleContextMenu(e, "column", colIndex)}
               >
@@ -1377,7 +1489,7 @@
                 class="row-header"
                 class:selected={rowIndex === selectedRow ||
                   (selectionMode === "row" && selectedRowRange.has(rowIndex))}
-                on:click={() => handleRowIndexClick(rowIndex)}
+                on:click={(e) => handleRowIndexClick(rowIndex, e)}
                 on:contextmenu={(e) => handleContextMenu(e, "row", rowIndex)}
               >
                 {rowIndex + 1}
@@ -1467,6 +1579,9 @@
       <div class="selected-content">
         <strong>{texts["ui.table.selected_content"] || "選中內容"}:</strong>
         {selectedCellContent}
+      </div>
+      <div class="multi-select-hint">
+        <small>提示: 按住 Ctrl/Cmd 多選，按住 Shift 範圍選取</small>
       </div>
       <div class="zoom-control">
         <label for="table-zoom">{texts["ui.table.zoom"] || "縮放"}:</label>
@@ -1888,6 +2003,12 @@ ar(--table-scale, 1));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-right: var(--spacing-md);
+  }
+
+  .multi-select-hint {
+    font-size: 0.8rem;
+    color: var(--text-hint);
     margin-right: var(--spacing-md);
   }
 
