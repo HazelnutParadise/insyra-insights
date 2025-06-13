@@ -106,6 +106,12 @@
   let isSelectingRange = false;
   let isDragging = false;
 
+  // 行/列索引拖拽狀態
+  let isDraggingRowIndex = false;
+  let isDraggingColIndex = false;
+  let dragStartRowIndex = -1;
+  let dragStartColIndex = -1;
+
   // 剪貼簿資料
   let clipboardData: string[][] = [];
   let clipboardType: "copy" | "cut" | null = null;
@@ -440,31 +446,39 @@
         const cellValue = tableData.rows[selectedRow].cells[column.name];
         dataToCopy = [[formatCellValue(cellValue)]];
       }
-    } else if (selectionMode === "row" && selectedRow >= 0) {
-      // 複製整行
-      const rowData: string[] = [];
-      for (let col = 0; col < tableData.columns.length; col++) {
-        const column = tableData.columns[col];
-        if (column && tableData.rows[selectedRow]) {
-          const cellValue = tableData.rows[selectedRow].cells[column.name];
-          rowData.push(formatCellValue(cellValue));
-        } else {
-          rowData.push("");
-        }
-      }
-      dataToCopy = [rowData];
-    } else if (selectionMode === "column" && selectedCol >= 0) {
-      // 複製整欄
-      const column = tableData.columns[selectedCol];
-      if (column) {
-        for (let row = 0; row < tableData.rows.length; row++) {
-          if (tableData.rows[row]) {
-            const cellValue = tableData.rows[row].cells[column.name];
-            dataToCopy.push([formatCellValue(cellValue)]);
+    } else if (selectionMode === "row") {
+      // 複製選中的行
+      const rowsToProcess = selectedRowRange.size > 0 ? Array.from(selectedRowRange).sort((a, b) => a - b) : (selectedRow >= 0 ? [selectedRow] : []);
+      
+      for (const rowIndex of rowsToProcess) {
+        const rowData: string[] = [];
+        for (let col = 0; col < tableData.columns.length; col++) {
+          const column = tableData.columns[col];
+          if (column && tableData.rows[rowIndex]) {
+            const cellValue = tableData.rows[rowIndex].cells[column.name];
+            rowData.push(formatCellValue(cellValue));
           } else {
-            dataToCopy.push([""]);
+            rowData.push("");
           }
         }
+        dataToCopy.push(rowData);
+      }
+    } else if (selectionMode === "column") {
+      // 複製選中的列
+      const colsToProcess = selectedColRange.size > 0 ? Array.from(selectedColRange).sort((a, b) => a - b) : (selectedCol >= 0 ? [selectedCol] : []);
+      
+      for (let row = 0; row < tableData.rows.length; row++) {
+        const rowData: string[] = [];
+        for (const colIndex of colsToProcess) {
+          const column = tableData.columns[colIndex];
+          if (column && tableData.rows[row]) {
+            const cellValue = tableData.rows[row].cells[column.name];
+            rowData.push(formatCellValue(cellValue));
+          } else {
+            rowData.push("");
+          }
+        }
+        dataToCopy.push(rowData);
       }
     }
 
@@ -1098,6 +1112,46 @@
     }
     return result;
   }
+  // 行索引拖拽開始
+  function handleRowIndexMouseDown(rowIndex: number, event: MouseEvent) {
+    if (event.button !== 0) return; // 只處理左鍵
+
+    // 如果按住修飾鍵，使用點擊邏輯
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      handleRowIndexClick(rowIndex, event);
+      return;
+    }
+
+    // 開始拖拽
+    isDraggingRowIndex = true;
+    dragStartRowIndex = rowIndex;
+    
+    // 初始選取
+    selectedRowRange = new Set([rowIndex]);
+    selectionMode = "row";
+    selectedRow = -1;
+    selectedCol = -1;
+    selectedColRange = new Set();
+    
+    event.preventDefault();
+    updateSelectedCellContent();
+  }
+
+  // 行索引拖拽進入
+  function handleRowIndexMouseEnter(rowIndex: number) {
+    if (isDraggingRowIndex && dragStartRowIndex >= 0) {
+      const startRow = Math.min(dragStartRowIndex, rowIndex);
+      const endRow = Math.max(dragStartRowIndex, rowIndex);
+      
+      selectedRowRange = new Set();
+      for (let i = startRow; i <= endRow; i++) {
+        selectedRowRange.add(i);
+      }
+      
+      updateSelectedCellContent();
+    }
+  }
+
   // 行索引點擊處理 - 選取整行（支援多選）
   function handleRowIndexClick(rowIndex: number, event?: MouseEvent) {
     if (editingState.isEditing) {
@@ -1153,6 +1207,46 @@
       selectedColRange = new Set();
     }
     // selectedCellContent 會自動由響應式語句更新
+  }
+
+  // 列索引拖拽開始
+  function handleColumnIndexMouseDown(colIndex: number, event: MouseEvent) {
+    if (event.button !== 0) return; // 只處理左鍵
+
+    // 如果按住修飾鍵，使用點擊邏輯
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      handleColumnIndexClick(colIndex, event);
+      return;
+    }
+
+    // 開始拖拽
+    isDraggingColIndex = true;
+    dragStartColIndex = colIndex;
+    
+    // 初始選取
+    selectedColRange = new Set([colIndex]);
+    selectionMode = "column";
+    selectedCol = -1;
+    selectedRow = -1;
+    selectedRowRange = new Set();
+    
+    event.preventDefault();
+    updateSelectedCellContent();
+  }
+
+  // 列索引拖拽進入
+  function handleColumnIndexMouseEnter(colIndex: number) {
+    if (isDraggingColIndex && dragStartColIndex >= 0) {
+      const startCol = Math.min(dragStartColIndex, colIndex);
+      const endCol = Math.max(dragStartColIndex, colIndex);
+      
+      selectedColRange = new Set();
+      for (let i = startCol; i <= endCol; i++) {
+        selectedColRange.add(i);
+      }
+      
+      updateSelectedCellContent();
+    }
   }
 
   // 列索引點擊處理 - 選取整列（支援多選）
@@ -1234,6 +1328,12 @@
       rangeSelectStartCol >= 0
     ) {
       contextMenuType = "range";
+    } else if (selectionMode === "row" && selectedRowRange.size > 1) {
+      // 多行選取時使用行菜單
+      contextMenuType = "row";
+    } else if (selectionMode === "column" && selectedColRange.size > 1) {
+      // 多列選取時使用列菜單
+      contextMenuType = "column";
     } else {
       contextMenuType = type;
     }
@@ -1265,23 +1365,53 @@
       rangeSelectEndCol,
     };
 
-    // 根據右鍵類型更新選擇狀態 - 但如果當前是範圍選取模式，則不更新選擇狀態
+    // 右鍵點擊時檢查是否需要更新選取狀態
+    // 只有在點擊位置不在當前選取範圍內時才重新選取
     if (selectionMode !== "range") {
+      let needsReselection = false;
+      
       if (type === "row" && index !== undefined) {
-        handleRowIndexClick(index);
+        // 檢查點擊的行是否在當前選取範圍內
+        if (selectionMode === "row") {
+          needsReselection = !selectedRowRange.has(index) && selectedRow !== index;
+        } else {
+          needsReselection = true; // 不同的選取模式，需要重新選取
+        }
+        
+        if (needsReselection) {
+          handleRowIndexClick(index);
+        }
       } else if (type === "column" && index !== undefined) {
-        handleColumnIndexClick(index);
+        // 檢查點擊的列是否在當前選取範圍內
+        if (selectionMode === "column") {
+          needsReselection = !selectedColRange.has(index) && selectedCol !== index;
+        } else {
+          needsReselection = true; // 不同的選取模式，需要重新選取
+        }
+        
+        if (needsReselection) {
+          handleColumnIndexClick(index);
+        }
       } else if (
         type === "cell" &&
         rowIndex !== undefined &&
         colIndex !== undefined &&
         tableData
       ) {
-        const column = tableData.columns[colIndex];
-        if (column) {
-          const cellValue = tableData.rows[rowIndex]?.cells[column.name];
-          const displayValue = formatCellValue(cellValue);
-          handleCellClick(rowIndex, colIndex, displayValue);
+        // 檢查點擊的儲存格是否在當前選取範圍內
+        if (selectionMode === "cell") {
+          needsReselection = selectedRow !== rowIndex || selectedCol !== colIndex;
+        } else {
+          needsReselection = true; // 不同的選取模式，需要重新選取
+        }
+        
+        if (needsReselection) {
+          const column = tableData.columns[colIndex];
+          if (column) {
+            const cellValue = tableData.rows[rowIndex]?.cells[column.name];
+            const displayValue = formatCellValue(cellValue);
+            handleCellClick(rowIndex, colIndex, displayValue);
+          }
         }
       }
     }
@@ -1304,6 +1434,17 @@
       isDragging = false;
       endRangeSelection();
     }
+    
+    // 結束行/列索引拖拽
+    if (isDraggingRowIndex) {
+      isDraggingRowIndex = false;
+      dragStartRowIndex = -1;
+    }
+    
+    if (isDraggingColIndex) {
+      isDraggingColIndex = false;
+      dragStartColIndex = -1;
+    }
   } // 右鍵菜單項目處理
   async function handleContextMenuAction(event: CustomEvent) {
     const { action, context } = event.detail;
@@ -1318,19 +1459,9 @@
         console.log(`在第 ${context.rowIndex || context.index} 行下方插入行`);
         break;
       case "duplicateRow":
-        console.log(`複製第 ${context.rowIndex || context.index} 行`);
-        // 執行複製整行操作
-        if (context.rowIndex !== undefined || context.index !== undefined) {
-          const rowIndex = context.rowIndex || context.index;
-          // 先設置選取狀態為該行
-          selectionMode = "row";
-          selectedRow = rowIndex;
-          selectedCol = -1;
-          selectedRowRange = new Set([rowIndex]);
-          selectedColRange = new Set();
-          // 然後執行複製
-          handleCopy();
-        }
+        console.log(`複製已選取的行`);
+        // 直接複製當前選取的行，不改變選取狀態
+        handleCopy();
         break;
       case "deleteRow":
         console.log(`刪除第 ${context.rowIndex || context.index} 行`);
@@ -1346,19 +1477,9 @@
         // 可以觸發欄位名稱編輯
         break;
       case "duplicateColumn":
-        console.log(`複製第 ${context.colIndex || context.index} 欄`);
-        // 執行複製整欄操作
-        if (context.colIndex !== undefined || context.index !== undefined) {
-          const colIndex = context.colIndex || context.index;
-          // 先設置選取狀態為該欄
-          selectionMode = "column";
-          selectedCol = colIndex;
-          selectedRow = -1;
-          selectedColRange = new Set([colIndex]);
-          selectedRowRange = new Set();
-          // 然後執行複製
-          handleCopy();
-        }
+        console.log(`複製已選取的變項`);
+        // 直接複製當前選取的變項，不改變選取狀態
+        handleCopy();
         break;
       case "deleteColumn":
         console.log(`刪除第 ${context.colIndex || context.index} 欄`);
@@ -1434,6 +1555,8 @@
                     selectedColRange.has(colIndex)) ||
                   (selectionMode === "cell" && colIndex === selectedCol)}
                 on:click={(e) => handleColumnIndexClick(colIndex, e)}
+                on:mousedown={(e) => handleColumnIndexMouseDown(colIndex, e)}
+                on:mouseenter={() => handleColumnIndexMouseEnter(colIndex)}
                 on:contextmenu={(e) =>
                   handleContextMenu(e, "column", colIndex)}
               >
@@ -1490,6 +1613,8 @@
                 class:selected={rowIndex === selectedRow ||
                   (selectionMode === "row" && selectedRowRange.has(rowIndex))}
                 on:click={(e) => handleRowIndexClick(rowIndex, e)}
+                on:mousedown={(e) => handleRowIndexMouseDown(rowIndex, e)}
+                on:mouseenter={() => handleRowIndexMouseEnter(rowIndex)}
                 on:contextmenu={(e) => handleContextMenu(e, "row", rowIndex)}
               >
                 {rowIndex + 1}
@@ -1579,9 +1704,6 @@
       <div class="selected-content">
         <strong>{texts["ui.table.selected_content"] || "選中內容"}:</strong>
         {selectedCellContent}
-      </div>
-      <div class="multi-select-hint">
-        <small>提示: 按住 Ctrl/Cmd 多選，按住 Shift 範圍選取</small>
       </div>
       <div class="zoom-control">
         <label for="table-zoom">{texts["ui.table.zoom"] || "縮放"}:</label>
